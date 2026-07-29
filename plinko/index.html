@@ -167,115 +167,22 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--live);outline-o
   <span class="fps" id="fps">—</span>
 </div>
 
+<script src="../shared/kit.js"></script>
 <script>
 "use strict";
 
 /* ============================================================
-   CONFIG
+   Config, storage, bridge and economy all come from the shared
+   kit so the control dock can drive this live.
    ============================================================ */
-const CONFIG = {
-  chatroomId: 1313654,
-  rows: 12,
-  slotValues: [-1, -2, 5, 10, 25, 50, 100],
+const { Settings, Bridge, Store, Economy, esc, hexA, shade } = Plinko;
+Bridge.init();
 
-  // the only colours that exist. Anything else is ignored.
-  palette: {
-    white:"#FFFFFF", red:"#FF3B4E", blue:"#3B9BFF", green:"#53FC18",
-    orange:"#FA5A1E", yellow:"#FFD93B", pink:"#FF2D8E", purple:"#A855F7",
-    cyan:"#22D3EE", gold:"#F0B429", mint:"#5BE9B9", coral:"#FF7A6B",
-  },
-  defaultColor: "#FFFFFF",
-
-  board: { maxActive:300, maxQueue:3000, releasePerFrame:4 },
-
-  economy: {
-    freePlay:true, startingBalls:3, maxPerDrop:5, cooldownSec:30,
-    watchEveryMin:10, watchBalls:1, onSub:5, onGiftSub:3,
-  },
-
-  physics: { gravity:0.90, restitution:0.50, damping:0.990, jitter:0.45, maxVx:0.75, substeps:4 },
-  idleCtaAfterSec: 14,
-  labelThreshold: 45,     // above this many balls, skip landing labels
-  targetFps: 40,
-};
+let CONFIG = Settings.data;          // live reference, replaced on change
 
 const DEBUG_FRAMES = false;
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* ============================================================
-   STORAGE
-   ============================================================ */
-const Store = (() => {
-  let ok = true;
-  try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); } catch(e){ ok=false; }
-  const mem = {};
-  return {
-    get(k,f){ try { const v = ok?localStorage.getItem(k):mem[k]; return v==null?f:JSON.parse(v);} catch(e){ return f; } },
-    set(k,v){ const s=JSON.stringify(v); try { if(ok) localStorage.setItem(k,s); else mem[k]=s; } catch(e){ mem[k]=s; } }
-  };
-})();
-
-/* ============================================================
-   ECONOMY
-   ============================================================ */
-const todayKey = () => new Date().toISOString().slice(0,10);
-
-const Economy = {
-  users:     Store.get("plinko.users", {}),
-  allTime:   Store.get("plinko.allTime", {}),
-  day:       Store.get("plinko.day", todayKey()),
-  dayScores: Store.get("plinko.dayScores", {}),
-  dayDrops:  Store.get("plinko.dayDrops", 0),
-  dayBest:   Store.get("plinko.dayBest", 0),
-
-  rollDayIfNeeded(){
-    const t = todayKey();
-    if (this.day !== t){
-      this.day=t; this.dayScores={}; this.dayDrops=0; this.dayBest=0;
-      Board.histogram.fill(0); this.save();
-    }
-  },
-  user(n){
-    if (!this.users[n]) this.users[n] = { balls:CONFIG.economy.startingBalls, last:0, color:CONFIG.defaultColor };
-    if (!this.users[n].color) this.users[n].color = CONFIG.defaultColor;
-    return this.users[n];
-  },
-  setColor(n, hex){ this.user(n).color = hex; this.save(); UI.renderBoard(); },
-  canDrop(n,c){
-    this.rollDayIfNeeded();
-    const u=this.user(n), wait = CONFIG.economy.cooldownSec*1000 - (Date.now()-u.last);
-    if (wait>0) return { ok:false, why:`${n} on cooldown · ${Math.ceil(wait/1000)}s` };
-    if (!CONFIG.economy.freePlay && u.balls<c) return { ok:false, why:`${n} needs ${c}, has ${u.balls}` };
-    return { ok:true };
-  },
-  spend(n,c){ const u=this.user(n); u.last=Date.now(); if(!CONFIG.economy.freePlay) u.balls-=c; this.save(); },
-  grant(n,x){ this.user(n).balls+=x; this.save(); },
-  award(n,pts){
-    this.rollDayIfNeeded();
-    this.dayScores[n]=(this.dayScores[n]||0)+pts;
-    this.allTime[n]=(this.allTime[n]||0)+pts;
-    this.dayDrops++;
-    if (pts>this.dayBest) this.dayBest=pts;
-    this.save(); UI.dirty = true;
-  },
-  resetDay(){
-    this.dayScores={}; this.dayDrops=0; this.dayBest=0;
-    Board.histogram.fill(0); this.save(); UI.renderBoard(); UI.renderStats();
-  },
-  top(which,n=7){
-    const src = which==="all" ? this.allTime : this.dayScores;
-    return Object.entries(src).sort((a,b)=>b[1]-a[1]).slice(0,n);
-  },
-  _dirty:false,
-  save(){ this._dirty = true; },
-  flush(){
-    if (!this._dirty) return;
-    this._dirty = false;
-    Store.set("plinko.users",this.users); Store.set("plinko.allTime",this.allTime);
-    Store.set("plinko.day",this.day);     Store.set("plinko.dayScores",this.dayScores);
-    Store.set("plinko.dayDrops",this.dayDrops); Store.set("plinko.dayBest",this.dayBest);
-  }
-};
 
 /* ============================================================
    BOARD
@@ -561,7 +468,7 @@ function step(){
 
       slot.flash=1;
       Board.histogram[idx]++;
-      Economy.award(b.user, slot.value);
+      Economy.award(b.user, slot.value); UI.dirty = true;
       UI.pushDrop(b.user, slot.value, c, b.color);
 
       const big = slot.value >= Board.maxValue*0.4;
@@ -756,66 +663,109 @@ function loop(now){
 
 /* helpers */
 function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
-function hexA(hex,a){
-  const h=String(hex).replace("#","");
-  const n=parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16);
-  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
-}
-function shade(hex,amt){
-  const h=String(hex).replace("#","");
-  const n=parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16);
-  const f=v=>Math.max(0,Math.min(255,Math.round(v+255*amt)));
-  return `rgb(${f((n>>16)&255)},${f((n>>8)&255)},${f(n&255)})`;
-}
 
 /* ============================================================
    COMMANDS
    ============================================================ */
-function parseCommand(user, text, isMod){
-  const parts=String(text).trim().toLowerCase().split(/\s+/);
-  const cmd=parts[0];
+/* ============================================================
+   CHAT ROUTER
+   A recognised command is handled as a command. Anything else is
+   a plain message, which drops a single ball only in "any" mode.
+   ============================================================ */
+const COMMANDS = new Set(["!drop","!balls","!credits","!bal","!color","!colour",
+                          "!addballs","!givebballs","!top","!plinko"]);
+const strip = s => String(s||"").replace(/^@/,"").toLowerCase();
 
-  // !color <name> — unknown names are ignored, silently
-  if (cmd==="!color" || cmd==="!colour"){
-    const name=parts[1];
-    if (!name || !CONFIG.palette[name]) return;
-    Economy.setColor(user, CONFIG.palette[name]);
-    UI.note(`${user} → ${name}`);
-    return;
-  }
+function handleChat(user, text, isMod){
+  const parts = String(text).trim().toLowerCase().split(/\s+/);
+  if (COMMANDS.has(parts[0])) return runCommand(user, parts, isMod);
+  if (CONFIG.economy.dropMode === "any") dropFor(user, 1, true);
+}
 
-  if (cmd==="!balls" || cmd==="!credits"){
-    UI.note(`${user}: ${CONFIG.economy.freePlay ? "free play" : Economy.user(user).balls+" balls"}`);
-    return;
-  }
-
-  if (isMod && cmd==="!plinko"){
-    const sub=parts[1];
-    if (sub==="freeplay"){ setFreePlay(parts[2]!=="off"); return; }
-    if (sub==="give" && parts[2]){ Economy.grant(parts[2], parseInt(parts[3]||"1",10)); UI.note(`gave ${parts[2]} balls`); return; }
-    if (sub==="reset"){ Economy.resetDay(); UI.note("day reset"); return; }
-    if (sub==="clear"){ balls.length=0; queue.length=0; UI.note("board cleared"); return; }
-    return;
-  }
-
-  if (cmd!=="!drop") return;
-
-  let count=1;
-  for (const a of parts.slice(1)) if (/^\d+$/.test(a)) count=parseInt(a,10);
-  count=Math.max(1,Math.min(count,CONFIG.economy.maxPerDrop));
-
-  const chk=Economy.canDrop(user,count);
-  if (!chk.ok){ UI.note(chk.why); return; }
-  Economy.spend(user,count);
-
+/* One place that decides whether a drop is allowed and what it costs. */
+function dropFor(user, count, fromMessage){
+  const e = CONFIG.economy;
+  const opts = fromMessage
+    ? { cooldownSec: Math.max(2, e.messageCooldownSec), free: e.freeMessages, quiet: true }
+    : {};
+  const chk = Economy.canDrop(user, count, opts);
+  if (!chk.ok){ if (!chk.quiet) UI.note(chk.why); return false; }
+  Economy.spend(user, count, opts);
   const accepted = enqueue(user, Economy.user(user).color, count);
-  if (accepted < count) UI.note("queue full — some drops refused");
-  UI.renderStats();
+  if (accepted < count && !fromMessage) UI.note("queue full — some drops refused");
+  return true;
+}
+
+/* Mod grant. Accepts either argument order, @ prefixes, and "all". */
+function grantBalls(args, isMod){
+  if (!isMod) return;
+  let n = null, who = null;
+  for (const a of args){
+    if (/^\d+$/.test(a)) n = parseInt(a,10);
+    else if (a) who = strip(a);
+  }
+  if (!who) return;
+  if (n == null) n = 1;
+  if (who === "all"){
+    const names = Object.keys(Economy.users);
+    for (const u of names) Economy.grant(u, n);
+    UI.note(`gave ${names.length} chatters ${n}`);
+  } else {
+    Economy.grant(who, n);
+    UI.note(`gave ${who} ${n}`);
+  }
+  UI.dirty = true;
+}
+
+function runCommand(user, parts, isMod){
+  const cmd = parts[0];
+
+  if (cmd === "!color" || cmd === "!colour"){
+    const name = parts[1];
+    if (!name || !CONFIG.palette[name]) return;      // unknown colour: silent
+    Economy.setColor(user, CONFIG.palette[name]);
+    UI.dirty = true; UI.note(`${user} → ${name}`);
+    return;
+  }
+
+  if (cmd === "!top"){
+    const top = Economy.top("day", 3);
+    UI.note(top.length ? top.map(([n,p],i)=>`${i+1}. ${n} ${p}`).join("   ") : "no scores yet");
+    return;
+  }
+
+  if (cmd === "!balls" || cmd === "!credits" || cmd === "!bal"){
+    if (parts[1] === "add") return grantBalls(parts.slice(2), isMod);   // !balls add @bob 5
+    const who = parts[1] ? strip(parts[1]) : user;
+    UI.note(CONFIG.economy.freePlay ? `${who}: free play` : `${who}: ${Economy.user(who).balls} balls`);
+    return;
+  }
+
+  if (cmd === "!addballs" || cmd === "!givebballs") return grantBalls(parts.slice(1), isMod);
+
+  if (isMod && cmd === "!plinko"){
+    const sub = parts[1];
+    if (sub === "freeplay"){ setFreePlay(parts[2] !== "off"); return; }
+    if (sub === "give" && parts[2]){ return grantBalls(parts.slice(2), isMod); }
+    if (sub === "reset"){ Economy.resetDay(); UI.dirty=true; UI.note("day reset"); return; }
+    if (sub === "clear"){ balls.length=0; queue.length=0; UI.note("board cleared"); return; }
+    if (sub === "mode"){ Settings.set("economy.dropMode", parts[2]==="any"?"any":"command"); return; }
+    return;
+  }
+
+  if (cmd === "!drop"){
+    let count = 1;
+    for (const a of parts.slice(1)) if (/^\d+$/.test(a)) count = parseInt(a,10);
+    count = Math.max(1, Math.min(count, CONFIG.economy.maxPerDrop));
+    dropFor(user, count, false);
+    UI.renderStats();
+  }
 }
 
 function setFreePlay(on){
-  CONFIG.economy.freePlay=on;
-  document.getElementById("freeplay").textContent=`Free play: ${on?"on":"off"}`;
+  Settings.set("economy.freePlay", on);
+  const btn=document.getElementById("freeplay");
+  if (btn) btn.textContent=`Free play: ${on?"on":"off"}`;
   UI.note(`free play ${on?"on":"off"}`);
 }
 
@@ -824,7 +774,7 @@ function setFreePlay(on){
    ============================================================ */
 const Chat = {
   ws:null, lastFrame:0, watchdog:null, retry:0,
-  onMessage:(u,t,m=false)=>parseCommand(u,t,m),
+  onMessage:(u,t,m=false)=>handleChat(u,t,m),
   mock(u,t,m){ this.onMessage(u,t,m); },
 
   connectKick({ chatroomId, appKey="32cbd69e4b950bf97679", cluster="us2" }){
@@ -882,9 +832,12 @@ const Chat = {
 const UI = {
   which:"day", feed:[], dirty:false, feedDirty:false,
 
+  liveState:"offline",
   setLive(on, txt){
-    document.getElementById("liveTag").classList.toggle("on", !!on);
-    document.getElementById("liveTxt").textContent = txt;
+    this.liveState = txt;
+    const tag=document.getElementById("liveTag"), t=document.getElementById("liveTxt");
+    if (tag) tag.classList.toggle("on", !!on);
+    if (t) t.textContent = txt;
   },
 
   renderBoard(){
@@ -932,7 +885,6 @@ const UI = {
   },
 
 };
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ============================================================
    BOOT
@@ -983,9 +935,63 @@ setInterval(()=>UI.tick(), 250);
 setInterval(()=>Economy.flush(), 2000);
 window.addEventListener("beforeunload", ()=>Economy.flush());
 
-Chat.connectKick({ chatroomId: CONFIG.chatroomId });
+Economy.onReset = () => Board.histogram.fill(0);
+
+/* ---- live settings ---------------------------------------- */
+let lastRows = CONFIG.rows, lastSlots = JSON.stringify(CONFIG.slotValues), lastRoom = CONFIG.chatroomId;
+
+Settings.onChange(s => {
+  CONFIG = s;
+  const slots = JSON.stringify(s.slotValues);
+  if (s.rows !== lastRows || slots !== lastSlots){
+    lastRows = s.rows; lastSlots = slots;
+    Board.histogram = [];
+    Board.buildValues(); Board.layout();
+    balls.length = 0; queue.length = 0;
+  }
+  if (s.chatroomId !== lastRoom){
+    lastRoom = s.chatroomId;
+    if (s.chatroomId) Chat.connectKick({ chatroomId: s.chatroomId });
+  }
+  UI.renderSwatches();
+  UI.dirty = true;
+});
+
+/* ---- commands from the dock -------------------------------- */
+Bridge.on("command", (c) => {
+  if (!c) return;
+  switch (c.cmd){
+    case "resetDay":     Economy.resetDay(); break;
+    case "resetAllTime": Economy.resetAllTime(); break;
+    case "resetCredits": Economy.resetCredits(); break;
+    case "clearBoard":   balls.length=0; queue.length=0; break;
+    case "give":         Economy.grant(c.user, c.n||1); UI.note(`gave ${c.user} ${c.n||1}`); break;
+    case "reconnect":    if (CONFIG.chatroomId) Chat.connectKick({ chatroomId: CONFIG.chatroomId }); break;
+    case "testDrop":     enqueue(c.user||"streamer", CONFIG.palette[c.color]||CONFIG.defaultColor, c.n||1); break;
+  }
+  UI.dirty = true;
+});
+
+/* ---- state out to the dock --------------------------------- */
+setInterval(() => {
+  Bridge.send("state", {
+    live: UI.liveState,
+    balls: balls.length,
+    queued: queue.length,
+    drops: Economy.dayDrops,
+    best: Economy.dayBest,
+    players: Object.keys(Economy.dayScores).length,
+    day: Economy.top("day", 10),
+    all: Economy.top("all", 10),
+    colors: Object.fromEntries(Object.entries(Economy.users).map(([k,v])=>[k, v.color])),
+  });
+}, 1000);
+
+if (CONFIG.chatroomId) Chat.connectKick({ chatroomId: CONFIG.chatroomId });
+else UI.setLive(false, "no channel set");
 
 requestAnimationFrame(loop);
+
 </script>
 </body>
 </html>

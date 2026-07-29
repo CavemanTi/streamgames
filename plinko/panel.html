@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plinko — control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0612; --card:#130C22; --edge:rgba(237,234,245,.10); --edge-hi:rgba(237,234,245,.2);
+  --chrome:#EDEAF5; --dim:#8C85A3; --dimmer:#5C566E;
+  --live:#53FC18; --hot:#FF2D8E; --amber:#F0B429; --bad:#FF3B4E;
+  --display:'Anton',Impact,sans-serif;
+  --ui:'Space Grotesk',system-ui,sans-serif;
+  --mono:'Space Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--chrome);font-family:var(--ui);font-size:13px;padding:10px;line-height:1.4}
+
+.sec{background:var(--card);border:1px solid var(--edge);border-radius:10px;padding:11px 12px;margin-bottom:9px}
+.sec > h2{
+  font-size:9px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dimmer);margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;
+}
+
+/* status */
+.status{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.status .dot{width:7px;height:7px;border-radius:50%;background:var(--dimmer);flex:0 0 auto}
+.status.live .dot{background:var(--live);box-shadow:0 0 8px var(--live)}
+.status.warn .dot{background:var(--amber)}
+.status .txt{font-size:12px;font-weight:600;text-transform:capitalize}
+.status button{margin-left:auto}
+
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.stat{background:rgba(237,234,245,.04);border-radius:6px;padding:6px 7px;text-align:center}
+.stat .k{font-family:var(--mono);font-size:14px;font-weight:700;line-height:1.1}
+.stat .v{font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--dimmer);margin-top:2px}
+.stat.q .k{color:var(--amber)}
+
+/* fields */
+.row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.row label{flex:1;color:var(--dim);font-size:12px}
+.row .hint{display:block;font-size:10px;color:var(--dimmer)}
+input[type=text],input[type=number]{
+  font-family:var(--mono);font-size:12px;width:78px;text-align:right;
+  background:#1B1130;color:var(--chrome);border:1px solid var(--edge);
+  border-radius:6px;padding:6px 8px;
+}
+input.wide{width:100%;text-align:left}
+input:focus{outline:2px solid var(--hot);outline-offset:1px}
+
+.toggle{position:relative;width:38px;height:21px;flex:0 0 auto;cursor:pointer}
+.toggle input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.toggle span{position:absolute;inset:0;background:#2A1E44;border-radius:20px;transition:.18s}
+.toggle span::after{content:"";position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;background:var(--dimmer);transition:.18s}
+.toggle input:checked + span{background:rgba(83,252,24,.25)}
+.toggle input:checked + span::after{transform:translateX(17px);background:var(--live)}
+.toggle input:focus-visible + span{outline:2px solid var(--hot);outline-offset:2px}
+
+button{
+  font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  background:rgba(237,234,245,.09);color:var(--chrome);border:1px solid var(--edge);
+  border-radius:6px;padding:7px 11px;cursor:pointer;transition:.15s;white-space:nowrap;
+}
+button:hover{background:rgba(237,234,245,.17);border-color:var(--edge-hi)}
+button.go{background:var(--live);color:#052008;border-color:var(--live)}
+button.go:hover{filter:brightness(1.1)}
+button.danger{color:var(--bad);border-color:rgba(255,59,78,.3)}
+button.danger:hover{background:rgba(255,59,78,.14)}
+button.sm{padding:5px 8px;font-size:9px}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+
+/* tabs */
+.tabs{display:flex;gap:3px}
+.tabs button{padding:3px 7px;font-size:9px;background:transparent;border-color:transparent;color:var(--dimmer)}
+.tabs button.on{background:rgba(237,234,245,.12);color:var(--chrome);border-color:var(--edge-hi)}
+
+/* leaderboard */
+ol#lb{list-style:none}
+ol#lb li{display:grid;grid-template-columns:16px 8px 1fr auto;align-items:center;gap:7px;padding:4px 0;font-size:12px;border-bottom:1px solid rgba(237,234,245,.05)}
+ol#lb li:last-child{border-bottom:0}
+ol#lb .r{font-family:var(--mono);font-size:10px;color:var(--dimmer)}
+ol#lb .sw{width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+ol#lb .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ol#lb .p{font-family:var(--mono);font-weight:700;font-size:11px}
+.empty{color:var(--dimmer);font-style:italic;font-size:11px;padding:5px 0}
+
+/* slot values */
+.slots{display:flex;gap:4px;margin-bottom:8px}
+.slots .sv{flex:1;min-width:0}
+.slots input{width:100%;text-align:center;padding:5px 2px;font-size:11px}
+.slots .lb{font-size:8px;color:var(--dimmer);text-align:center;margin-bottom:3px;letter-spacing:.05em}
+.odds{display:flex;gap:2px;align-items:flex-end;height:34px;margin-top:2px}
+.odds .b{flex:1;background:var(--hot);opacity:.5;border-radius:2px 2px 0 0;min-height:1px}
+.oddsRow{display:flex;gap:2px;margin-top:3px}
+.oddsRow span{flex:1;font-family:var(--mono);font-size:8px;color:var(--dimmer);text-align:center}
+
+.note{font-size:11px;color:var(--dimmer);margin-top:7px;line-height:1.45}
+.warn{color:var(--amber)}
+</style>
+</head>
+<body>
+
+<div class="sec">
+  <h2>Status</h2>
+  <div class="status" id="statusBox">
+    <span class="dot"></span><span class="txt" id="liveTxt">offline</span>
+    <button class="sm" id="btnReconnect">Reconnect</button>
+  </div>
+  <div class="grid">
+    <div class="stat"><div class="k" id="sBalls">0</div><div class="v">Balls</div></div>
+    <div class="stat q"><div class="k" id="sQueued">0</div><div class="v">Queued</div></div>
+    <div class="stat"><div class="k" id="sDrops">0</div><div class="v">Drops</div></div>
+    <div class="stat"><div class="k" id="sPlayers">0</div><div class="v">Players</div></div>
+  </div>
+  <div class="note" id="staleNote"></div>
+</div>
+
+<div class="sec">
+  <h2>Channel</h2>
+  <div class="row"><label>Chatroom ID<span class="hint">devtools → Network → WS</span></label>
+    <input type="number" id="chatroomId"></div>
+  <div class="row"><label>Channel name<span class="hint">display only</span></label>
+    <input type="text" id="channelName" style="width:110px"></div>
+</div>
+
+<div class="sec">
+  <h2>Leaderboard
+    <span class="tabs"><button id="tabDay" class="on">Today</button><button id="tabAll">All time</button></span>
+  </h2>
+  <ol id="lb"></ol>
+  <div class="btns" style="margin-top:9px">
+    <button class="danger sm" id="btnResetDay">Clear today</button>
+    <button class="danger sm" id="btnResetAll">Clear all time</button>
+  </div>
+</div>
+
+<div class="sec">
+  <h2>Gameplay</h2>
+  <div class="row"><label>What drops a ball</label>
+    <span class="tabs" id="modeTabs">
+      <button data-mode="command" id="modeCmd">!drop only</button>
+      <button data-mode="any" id="modeAny">Any message</button>
+    </span></div>
+  <div class="row" id="msgCdRow"><label>Message rate limit<span class="hint">seconds · floor 2</span></label>
+    <input type="number" id="messageCooldownSec" min="2" max="600"></div>
+  <div class="row" id="freeMsgRow"><label>Message drops cost nothing<span class="hint">off = chatting spends a credit each</span></label>
+    <span class="toggle"><input type="checkbox" id="freeMessages"><span></span></span></div>
+  <div class="row"><label>Free play<span class="hint">ignore ball credits</span></label>
+    <span class="toggle"><input type="checkbox" id="freePlay"><span></span></span></div>
+  <div class="row"><label>Cooldown (sec)</label><input type="number" id="cooldownSec" min="0"></div>
+  <div class="row"><label>Max balls per !drop<span class="hint">ceiling 5</span></label>
+    <input type="number" id="maxPerDrop" min="1" max="5"></div>
+  <div class="row"><label>Balls on board<span class="hint">overflow is queued · ceiling 300</span></label>
+    <input type="number" id="maxActive" min="10" max="300"></div>
+</div>
+
+<div class="sec">
+  <h2>Ball credits</h2>
+  <div class="row"><label>Starting balls<span class="hint">ceiling 100</span></label>
+    <input type="number" id="startingBalls" min="0" max="100"></div>
+  <div class="row"><label>Give every (min)</label><input type="number" id="watchEveryMin" min="1"></div>
+  <div class="row"><label>Balls per interval</label><input type="number" id="watchBalls" min="0"></div>
+  <div class="row"><label>On sub</label><input type="number" id="onSub" min="0"></div>
+  <div class="row"><label>On gifted sub</label><input type="number" id="onGiftSub" min="0"></div>
+</div>
+
+<div class="sec">
+  <h2>Payouts</h2>
+  <div class="lb" style="font-size:9px;color:var(--dimmer);letter-spacing:.1em;text-transform:uppercase;margin:9px 0 5px">Slot values · centre → edge</div>
+  <div class="slots" id="slotInputs"></div>
+  <div class="odds" id="oddsBars"></div>
+  <div class="oddsRow" id="oddsPct"></div>
+  <div class="note">Chance of landing in each slot. Changing a value rebuilds the board and clears balls in play.</div>
+</div>
+
+<div class="sec">
+  <h2>Actions</h2>
+  <div class="row"><label>Give balls</label>
+    <input type="text" id="giveUser" placeholder="username" style="width:96px;text-align:left"></div>
+  <div class="row"><label>Amount</label>
+    <input type="number" id="giveN" value="5" min="1">
+    <button class="go sm" id="btnGive">Give</button></div>
+  <div class="btns" style="margin-top:4px">
+    <button class="sm" id="btnTest">Test drop ×3</button>
+    <button class="sm" id="btnClear">Clear board</button>
+  </div>
+</div>
+
+<div class="sec">
+  <h2>Reset</h2>
+  <div class="btns">
+    <button class="danger sm" id="btnResetCredits">Wipe all ball credits</button>
+    <button class="danger sm" id="btnDefaults">Restore defaults</button>
+  </div>
+  <div class="note warn" id="resetNote"></div>
+</div>
+
+<script src="../shared/kit.js"></script>
+<script>
+"use strict";
+const { Settings, Bridge, esc, slotOdds } = window.Plinko;
+Bridge.init();
+
+const $ = id => document.getElementById(id);
+const cmd = (c) => Bridge.send("command", c);
+
+/* ---------- live state from the overlay --------------------- */
+let state = null, lastState = 0, which = "day";
+
+Bridge.on("state", (s) => { state = s; lastState = Date.now(); renderState(); });
+
+function renderState(){
+  const box = $("statusBox");
+  const stale = !state || Date.now()-lastState > 4000;
+
+  box.className = "status" + (stale ? "" : state.live==="live" ? " live"
+                : state.live==="offline" ? "" : " warn");
+  $("liveTxt").textContent = stale ? "no overlay" : state.live;
+  $("staleNote").textContent = stale
+    ? "Overlay isn't running, or isn't on this origin. Settings still save and apply when it starts."
+    : "";
+
+  if (!state) return;
+  $("sBalls").textContent   = state.balls;
+  $("sQueued").textContent  = state.queued;
+  $("sDrops").textContent   = state.drops;
+  $("sPlayers").textContent = state.players;
+
+  const rows = (which === "all" ? state.all : state.day) || [];
+  $("lb").innerHTML = rows.length
+    ? rows.map(([n,p],i) =>
+        `<li><span class="r">${String(i+1).padStart(2,"0")}</span>`+
+        `<span class="sw" style="background:${(state.colors&&state.colors[n])||"#FFF"}"></span>`+
+        `<span class="n">${esc(n)}</span>`+
+        `<span class="p">${p.toLocaleString()}</span></li>`).join("")
+    : `<li class="empty">Nobody's dropped yet</li>`;
+}
+setInterval(renderState, 1500);
+
+/* ---------- settings -> form -------------------------------- */
+/* path, element id, kind, min, max — limits are enforced here, not just as
+   markup hints, so a typed-in 900 is corrected rather than accepted. */
+const FIELDS = [
+  ["chatroomId","chatroomId","num",0,null],
+  ["channelName","channelName","text"],
+  ["board.maxActive","maxActive","num",10,300],
+  ["economy.freePlay","freePlay","bool"],
+  ["economy.cooldownSec","cooldownSec","num",0,null],
+  ["economy.messageCooldownSec","messageCooldownSec","num",2,600],
+  ["economy.freeMessages","freeMessages","bool"],
+  ["economy.maxPerDrop","maxPerDrop","num",1,5],
+  ["economy.startingBalls","startingBalls","num",0,100],
+  ["economy.watchEveryMin","watchEveryMin","num",1,null],
+  ["economy.watchBalls","watchBalls","num",0,null],
+  ["economy.onSub","onSub","num",0,null],
+  ["economy.onGiftSub","onGiftSub","num",0,null],
+];
+
+let painting = false;
+
+function paint(){
+  painting = true;
+  for (const [path,id,kind] of FIELDS){
+    const el = $(id), v = Settings.get(path);
+    if (kind === "bool") el.checked = !!v; else el.value = v;
+  }
+  paintSlots();
+  paintMode();
+  painting = false;
+}
+
+function paintMode(){
+  const m = Settings.get("economy.dropMode") === "any" ? "any" : "command";
+  $("modeCmd").classList.toggle("on", m === "command");
+  $("modeAny").classList.toggle("on", m === "any");
+  /* the rate limit and free-messages rows only mean anything in any-mode */
+  const on = m === "any";
+  $("msgCdRow").style.opacity   = on ? "1" : ".4";
+  $("freeMsgRow").style.opacity = on ? "1" : ".4";
+  $("messageCooldownSec").disabled = !on;
+  $("freeMessages").disabled = !on;
+}
+
+for (const b of document.querySelectorAll("#modeTabs button"))
+  b.addEventListener("click", () => { Settings.set("economy.dropMode", b.dataset.mode); paintMode(); });
+
+function bind(){
+  for (const [path,id,kind,lo,hi] of FIELDS){
+    const el = $(id);
+    el.addEventListener("change", () => {
+      if (painting) return;
+      let v;
+      if (kind === "bool") v = el.checked;
+      else if (kind === "num"){
+        v = parseInt(el.value,10);
+        if (!Number.isFinite(v)) { paint(); return; }
+        if (lo != null && v < lo) v = lo;
+        if (hi != null && v > hi) v = hi;
+        el.value = v;                     // show the clamped value back
+      } else v = el.value.trim();
+      Settings.set(path, v);
+    });
+  }
+}
+
+/* ---------- slot values + odds ------------------------------ */
+function paintSlots(){
+  const vals = Settings.get("slotValues");
+  $("slotInputs").innerHTML = vals.map((v,i) =>
+    `<div class="sv"><div class="lb">${i===0?"MID":i}</div>`+
+    `<input type="number" data-i="${i}" value="${v}"></div>`).join("");
+  for (const el of $("slotInputs").querySelectorAll("input")){
+    el.addEventListener("change", () => {
+      const n = parseInt(el.value,10);
+      if (!Number.isFinite(n)){ paintSlots(); return; }
+      const next = Settings.get("slotValues").slice();
+      next[+el.dataset.i] = n;
+      Settings.set("slotValues", next);
+    });
+  }
+  paintOdds();
+}
+
+function paintOdds(){
+  const rows = Settings.get("rows");
+  const half = Settings.get("slotValues").slice(1);
+  const mirrored = [...half.slice().reverse(), Settings.get("slotValues")[0], ...half];
+  const odds = slotOdds(rows);
+  if (odds.length !== mirrored.length){
+    $("oddsBars").innerHTML = ""; $("oddsPct").innerHTML = "";
+    return;
+  }
+  const mx = Math.max(...odds);
+  $("oddsBars").innerHTML = odds.map(o =>
+    `<div class="b" style="height:${Math.max(1,(o/mx)*34)}px"></div>`).join("");
+  $("oddsPct").innerHTML = odds.map(o =>
+    `<span>${o*100 < 0.1 ? "·" : (o*100).toFixed(o*100<10?1:0)}</span>`).join("");
+}
+
+/* ---------- actions ----------------------------------------- */
+$("btnReconnect").onclick   = () => cmd({cmd:"reconnect"});
+$("btnResetDay").onclick    = () => confirm("Clear today's leaderboard?") && cmd({cmd:"resetDay"});
+$("btnResetAll").onclick    = () => confirm("Clear the all-time leaderboard? This can't be undone.") && cmd({cmd:"resetAllTime"});
+$("btnResetCredits").onclick= () => confirm("Wipe every viewer's ball credits?") && cmd({cmd:"resetCredits"});
+$("btnClear").onclick       = () => cmd({cmd:"clearBoard"});
+$("btnTest").onclick        = () => cmd({cmd:"testDrop", user:"streamer", n:3, color:"pink"});
+$("btnGive").onclick = () => {
+  const u = $("giveUser").value.trim();
+  if (!u) { $("giveUser").focus(); return; }
+  cmd({cmd:"give", user:u.toLowerCase(), n:parseInt($("giveN").value,10)||1});
+  $("giveUser").value = "";
+};
+$("btnDefaults").onclick = () => {
+  if (!confirm("Restore every setting to its default? Leaderboards are kept.")) return;
+  Settings.reset(); paint();
+};
+
+$("tabDay").onclick = () => { which="day"; $("tabDay").classList.add("on"); $("tabAll").classList.remove("on"); renderState(); };
+$("tabAll").onclick = () => { which="all"; $("tabAll").classList.add("on"); $("tabDay").classList.remove("on"); renderState(); };
+
+/* another context changed settings — repaint, don't fight the user */
+Settings.onChange(() => { if (!document.hasFocus()) paint(); paintOdds(); });
+
+paint();
+bind();
+renderState();
+</script>
+</body>
+</html>

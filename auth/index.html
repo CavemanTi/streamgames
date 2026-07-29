@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Auth callback</title>
+<style>
+body{background:#0A0612;color:#EDEAF5;font-family:'Space Grotesk',system-ui,sans-serif;
+padding:40px;line-height:1.5}
+code{background:rgba(237,234,245,.1);padding:2px 6px;border-radius:4px;
+font-family:'Space Mono',ui-monospace,monospace;font-size:13px;word-break:break-all}
+h1{font-size:20px;margin-bottom:10px}
+p{color:#8C85A3;max-width:60ch}
+</style></head><body>
+<h1>Auth callback</h1>
+<p id="msg">Registered redirect target. The OAuth flow isn't built yet — this page
+exists so the redirect URL resolves.</p>
+<p id="code"></p>
+<script>
+// Show whatever Kick hands back, so the flow can be debugged by eye.
+const q = new URLSearchParams(location.search);
+const parts = [];
+for (const k of ["code","state","error","error_description"])
+  if (q.get(k)) parts.push(`<b>${k}</b>: <code>${q.get(k)}</code>`);
+if (parts.length) document.getElementById("code").innerHTML = parts.join("<br>");
+</script>
+</body></html>
