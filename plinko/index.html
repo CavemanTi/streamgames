@@ -41,37 +41,31 @@ body.preview{
 
 /* panels sit in the dead space either side of the pin triangle.
    JS positions them from the board geometry. */
-.inset{position:absolute;display:flex;flex-direction:column;gap:5px;overflow:hidden;pointer-events:none}
+.inset{position:absolute;display:flex;flex-direction:column;gap:3px;overflow:hidden;pointer-events:none}
 .inset .ttl{
-  font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
-  color:var(--dimmer);margin-bottom:3px;
+  font-size:8px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dimmer);margin-bottom:2px;
 }
 body.transparent .inset .ttl{color:rgba(237,234,245,.45)}
 
-ol#lb{list-style:none;display:flex;flex-direction:column;gap:2px}
+ol#lb{list-style:none;display:flex;flex-direction:column;gap:0}
 ol#lb li{
-  position:relative;display:grid;grid-template-columns:16px 8px 1fr auto;
-  align-items:center;gap:7px;padding:3px 6px;border-radius:5px;overflow:hidden;font-size:13px;
+  display:grid;grid-template-columns:14px 7px 1fr auto;
+  align-items:center;gap:6px;padding:1px 0;font-size:11px;
 }
-ol#lb .bar{position:absolute;inset:0 auto 0 0;border-radius:5px;
-  background:linear-gradient(90deg,rgba(255,45,142,.20),rgba(255,45,142,.02))}
-ol#lb li:nth-child(n+4) .bar{background:linear-gradient(90deg,rgba(237,234,245,.07),rgba(237,234,245,.01))}
-ol#lb .rank{position:relative;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--dimmer)}
-ol#lb li:nth-child(1) .rank{color:var(--h5)}
-ol#lb li:nth-child(2) .rank{color:var(--h4)}
-ol#lb li:nth-child(3) .rank{color:var(--h3)}
-ol#lb .swatch{position:relative;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.55)}
-ol#lb .who{position:relative;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-ol#lb .pts{position:relative;font-family:var(--mono);font-weight:700;font-size:12px}
+ol#lb .rank{font-family:var(--mono);font-size:9px;font-weight:700;color:var(--dimmer)}
+ol#lb .swatch{width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.55)}
+ol#lb .who{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+ol#lb .pts{font-family:var(--mono);font-weight:700;font-size:10px;color:var(--chrome)}
 
 #feed{display:flex;flex-direction:column;gap:1px}
-#feed .line{display:flex;align-items:center;gap:7px;font-size:12px;padding:2px 6px;white-space:nowrap;overflow:hidden}
+#feed .line{display:flex;align-items:center;gap:6px;font-size:11px;padding:1px 0;white-space:nowrap;overflow:hidden}
 #feed .chip{width:6px;height:6px;border-radius:2px;flex:0 0 auto}
 #feed .who{overflow:hidden;text-overflow:ellipsis}
-#feed .val{font-family:var(--mono);font-weight:700;font-size:12px;margin-left:auto}
-#feed .note{color:var(--dimmer);font-size:11px;font-style:italic}
+#feed .val{font-family:var(--mono);font-weight:700;font-size:10px;margin-left:auto}
+#feed .note{color:var(--dimmer);font-size:10px;font-style:italic}
 
-.empty{font-size:12px;color:var(--dimmer);font-style:italic;padding:3px 6px}
+.empty{font-size:10px;color:var(--dimmer);font-style:italic;padding:2px 0}
 
 /* legibility over arbitrary video when the cabinet isn't drawn */
 body.transparent .inset{text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.7)}
@@ -161,6 +155,7 @@ const DEBUG_FRAMES = false;
 const _bgParam = new URLSearchParams(location.search).get("bg");
 const TRANSPARENT = (_bgParam || Settings.get("display.background") || "vignette") === "transparent";
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const LB_ROWS = 8;      // leaderboard entries shown; also sets the panel height
 
 
 /* ============================================================
@@ -228,8 +223,8 @@ const Board = {
 
     const R=CONFIG.rows;
     this.s=this.fieldW/(R+3.4);
-    this.hopperY=this.H*0.028;
     this.fieldTop=this.H*0.095;
+    this.hopperY=this.fieldTop-this.s*0.46;   // mouth just inside the cabinet lip
     this.topY=this.H*0.175;
     this.rowGap=(this.H*0.645)/R;
 
@@ -266,15 +261,31 @@ const Board = {
   placePanels(){
     const lb=document.getElementById("lbPanel"), fd=document.getElementById("feedPanel");
     if (!lb||!fd) return;
-    const pad = Math.max(10, this.gutter*0.08);
-    const colW = Math.max(120, this.gutter - pad*2);
-    const top  = this.fieldTop + this.H*0.03;
-    for (const [el,side] of [[lb,"left"],[fd,"right"]]){
+
+    /* The pin field is a triangle, so inside the cabinet the upper corners are
+       empty. Width is set by where the triangle's edge has reached at the
+       bottom of the panel, so text never runs under the pins. */
+    const pad      = this.s*0.42;
+    const cabLeft  = this.leftWall  - this.s*0.55;
+    const cabRight = this.rightWall + this.s*0.55;
+    const top      = this.fieldTop + pad*0.8;
+
+    /* Work out how deep the list actually needs to go (fixed px, since the
+       font doesn't scale), then take the width from where the triangle edge
+       has reached at that depth. Shallower list => wider column. */
+    const NEEDED   = 14 + LB_ROWS*13;
+    const rowsDeep = Math.max(2, Math.min(CONFIG.rows-2, Math.ceil(NEEDED/this.rowGap)));
+    const bottom   = Math.max(top + NEEDED, this.topY + rowsDeep*this.rowGap);
+    const edgeL    = this.W/2 - (rowsDeep+2)*this.s/2;
+    const colW     = Math.max(80, edgeL - cabLeft - pad*2);
+
+    lb.style.left = (cabLeft + pad)+"px";
+    fd.style.left = (cabRight - pad - colW)+"px";
+    for (const el of [lb,fd]){
       el.style.top = top+"px";
       el.style.width = colW+"px";
-      el.style.maxHeight = (this.slotTop - top)+"px";
-      el.style[side] = pad+"px";
-      el.style[side==="left"?"right":"left"] = "auto";
+      el.style.maxHeight = Math.max(60, bottom - top)+"px";
+      el.style.right = "auto";
     }
   },
 
@@ -834,15 +845,13 @@ const UI = {
 
   /* One list. It stacks until the streamer clears it — no daily rollover. */
   renderBoard(){
-    const rows=Economy.top("all", 12);
+    const rows=Economy.top("all", LB_ROWS);
     const el=document.getElementById("lb");
     if (!el) return;
     if (!rows.length){ el.innerHTML=`<li class="empty">Nobody's dropped yet</li>`; return; }
-    const max=rows[0][1]||1;
     el.innerHTML=rows.map(([n,p],i)=>{
       const col=(Economy.users[n]&&Economy.users[n].color)||CONFIG.defaultColor;
-      return `<li><span class="bar" style="width:${Math.max(6,(p/max)*100)}%"></span>`+
-        `<span class="rank">${String(i+1).padStart(2,"0")}</span>`+
+      return `<li><span class="rank">${String(i+1).padStart(2,"0")}</span>`+
         `<span class="swatch" style="background:${col}"></span>`+
         `<span class="who">${esc(n)}</span>`+
         `<span class="pts">${p.toLocaleString()}</span></li>`;
@@ -854,11 +863,11 @@ const UI = {
       `<div class="line"><span class="chip" style="background:${ballColor}"></span>`+
       `<span class="who">${esc(user)}</span>`+
       `<span class="val" style="color:${heat}">${value>0?"+":""}${value}</span></div>`);
-    this.feed=this.feed.slice(0,9); this.feedDirty=true;
+    this.feed=this.feed.slice(0,LB_ROWS); this.feedDirty=true;
   },
   note(m){
     this.feed.unshift(`<div class="line"><span class="note">${esc(m)}</span></div>`);
-    this.feed=this.feed.slice(0,9); this.feedDirty=true;
+    this.feed=this.feed.slice(0,LB_ROWS); this.feedDirty=true;
   },
   tick(){
     if (this.feedDirty){
