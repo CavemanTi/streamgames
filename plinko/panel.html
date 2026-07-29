@@ -120,10 +120,15 @@ ol#lb .p{font-family:var(--mono);font-weight:700;font-size:11px}
 
 <div class="sec">
   <h2>Channel</h2>
-  <div class="row"><label>Chatroom ID<span class="hint">devtools → Network → WS</span></label>
-    <input type="number" id="chatroomId"></div>
-  <div class="row"><label>Channel name<span class="hint">display only</span></label>
+  <div class="row"><label>Channel name<span class="hint">your Kick username</span></label>
     <input type="text" id="channelName" style="width:110px"></div>
+  <div class="row"><label>Chatroom ID</label>
+    <input type="number" id="chatroomId"></div>
+  <div class="btns" style="margin-bottom:7px">
+    <button class="sm" id="btnLookup">1 · Open Kick lookup</button>
+  </div>
+  <input type="text" class="wide" id="pasteBox" placeholder="2 · select all on that page, copy, paste here">
+  <div class="note" id="pasteNote">Finds the ID for you. Nothing leaves your machine.</div>
 </div>
 
 <div class="sec">
@@ -341,6 +346,45 @@ function paintOdds(){
 }
 
 /* ---------- actions ----------------------------------------- */
+/* ---------- chatroom ID helper ------------------------------
+   Kick's v2 endpoint is Cloudflare-gated and CORS-blocked, so we can't
+   fetch it — but a browser tab loads it fine. Open it for them, then
+   pull the ID out of whatever they paste back. Accepts the raw JSON,
+   a websocket subscribe frame, or a bare number. */
+function extractChatroomId(text){
+  const s = String(text);
+  let m = s.match(/"chatroom"\s*:\s*\{[^{}]*?"id"\s*:\s*(\d+)/);      // v2 JSON
+  if (m) return +m[1];
+  m = s.match(/chatrooms[.\s]*(\d{3,})[.\s]*v2/);                        // pusher frame
+  if (m) return +m[1];
+  m = s.match(/"chatroom_id"\s*:\s*(\d+)/);                             // some payloads
+  if (m) return +m[1];
+  m = s.trim().match(/^(\d{3,12})$/);                                    // just the number
+  if (m) return +m[1];
+  return null;
+}
+
+$("btnLookup").onclick = () => {
+  const slug = ($("channelName").value || "").trim().toLowerCase();
+  if (!slug){ $("pasteNote").textContent = "Enter your channel name first."; $("channelName").focus(); return; }
+  window.open(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`, "_blank");
+  $("pasteNote").textContent = "Select all on that tab, copy, then paste below.";
+};
+
+$("pasteBox").addEventListener("input", () => {
+  const v = $("pasteBox").value;
+  if (!v.trim()) return;
+  const id = extractChatroomId(v);
+  if (id){
+    Settings.set("chatroomId", id);
+    $("chatroomId").value = id;
+    $("pasteBox").value = "";
+    $("pasteNote").textContent = `Found chatroom ${id} — connecting.`;
+  } else if (v.length > 40){
+    $("pasteNote").textContent = "No chatroom ID in that. Check you copied the whole page.";
+  }
+});
+
 $("btnReconnect").onclick   = () => cmd({cmd:"reconnect"});
 $("btnResetDay").onclick    = () => confirm("Clear today's leaderboard?") && cmd({cmd:"resetDay"});
 $("btnResetAll").onclick    = () => confirm("Clear the all-time leaderboard? This can't be undone.") && cmd({cmd:"resetAllTime"});

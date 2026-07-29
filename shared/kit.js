@@ -131,6 +131,14 @@ const Bridge = {
     return this;
   },
 
+  /* Transient telemetry: BroadcastChannel only, no storage write. For
+     anything high-rate where a late-joining context doesn't need to catch up. */
+  sendLive(type, payload){
+    if (!this._bc) return false;
+    try { this._bc.postMessage({ type, payload, at: Date.now() }); return true; }
+    catch(e){ return false; }
+  },
+
   send(type, payload){
     const msg = { type, payload, at:Date.now(), id:Math.random() };
     if (this._bc){ try { this._bc.postMessage(msg); } catch(e){} }

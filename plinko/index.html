@@ -974,17 +974,24 @@ Bridge.on("command", (c) => {
 
 /* ---- state out to the dock --------------------------------- */
 setInterval(() => {
-  Bridge.send("state", {
+  const day = Economy.top("day", 10), all = Economy.top("all", 10);
+  /* Only ship colours for names actually on screen — the full user map grows
+     for the whole stream and none of it is needed. */
+  const colors = {};
+  for (const [n] of day.concat(all)){
+    const u = Economy.users[n];
+    if (u && u.color) colors[n] = u.color;
+  }
+  const payload = {
     live: UI.liveState,
-    balls: balls.length,
-    queued: queue.length,
-    drops: Economy.dayDrops,
-    best: Economy.dayBest,
+    balls: balls.length, queued: queue.length,
+    drops: Economy.dayDrops, best: Economy.dayBest,
     players: Object.keys(Economy.dayScores).length,
-    day: Economy.top("day", 10),
-    all: Economy.top("all", 10),
-    colors: Object.fromEntries(Object.entries(Economy.users).map(([k,v])=>[k, v.color])),
-  });
+    day, all, colors,
+  };
+  /* Prefer the channel. Fall back to a durable send only if it's unavailable,
+     so a dock without BroadcastChannel still gets state. */
+  if (!Bridge.sendLive("state", payload)) Bridge.send("state", payload);
 }, 1000);
 
 if (CONFIG.chatroomId) Chat.connectKick({ chatroomId: CONFIG.chatroomId });
