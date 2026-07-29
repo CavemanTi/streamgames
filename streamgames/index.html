@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stream Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cab:#0A0612; --panel:rgba(18,12,32,.7); --edge:rgba(237,234,245,.11);
+  --chrome:#EDEAF5; --dim:#8C85A3; --dimmer:#5C566E;
+  --hot:#FF2D8E; --live:#53FC18; --amber:#F0B429;
+  --display:'Anton',Impact,sans-serif;
+  --ui:'Space Grotesk',system-ui,sans-serif;
+  --mono:'Space Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:
+    radial-gradient(900px 600px at 15% 0%, #241640 0%, transparent 60%),
+    radial-gradient(800px 560px at 92% 100%, #0E2B3A 0%, transparent 55%),
+    var(--cab);
+  color:var(--chrome);font-family:var(--ui);
+  min-height:100vh;padding:48px 24px 80px;line-height:1.55;
+}
+.wrap{max-width:760px;margin:0 auto}
+
+header{margin-bottom:44px}
+h1{font-family:var(--display);font-size:clamp(44px,9vw,78px);line-height:.92;text-transform:uppercase;letter-spacing:.01em}
+h1 span{color:var(--hot)}
+.sub{color:var(--dim);font-size:16px;margin-top:14px;max-width:52ch}
+
+.pill{
+  display:inline-flex;align-items:center;gap:7px;margin-bottom:18px;
+  font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--live);border:1px solid rgba(83,252,24,.3);
+  background:rgba(83,252,24,.07);border-radius:20px;padding:5px 12px;
+}
+.pill i{width:6px;height:6px;border-radius:50%;background:var(--live);display:block}
+
+h2{
+  font-family:var(--display);font-size:13px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--dimmer);font-weight:400;margin:38px 0 14px;
+}
+
+.game{
+  background:var(--panel);border:1px solid var(--edge);border-radius:14px;
+  padding:22px;margin-bottom:14px;backdrop-filter:blur(8px);
+}
+.game .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px}
+.game .name{font-family:var(--display);font-size:26px;text-transform:uppercase}
+.game .tag{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--live)}
+.game .tag.soon{color:var(--dimmer)}
+.game .desc{color:var(--dim);font-size:14px;margin-bottom:18px}
+.game.soon{opacity:.5}
+
+.url{margin-bottom:11px}
+.url .lbl{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer);margin-bottom:5px}
+.url .row{display:flex;gap:7px}
+.url input{
+  flex:1;min-width:0;font-family:var(--mono);font-size:12px;
+  background:rgba(10,6,18,.75);color:var(--chrome);
+  border:1px solid var(--edge);border-radius:7px;padding:9px 11px;
+}
+.url button{
+  font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  background:rgba(237,234,245,.1);color:var(--chrome);border:1px solid var(--edge);
+  border-radius:7px;padding:9px 14px;cursor:pointer;transition:.15s;white-space:nowrap;
+}
+.url button:hover{background:rgba(237,234,245,.18)}
+.url button.done{background:var(--live);color:#052008;border-color:var(--live)}
+
+ol.steps{list-style:none;counter-reset:s;margin-top:8px}
+ol.steps li{
+  counter-increment:s;position:relative;padding-left:30px;margin-bottom:9px;
+  font-size:14px;color:var(--dim);
+}
+ol.steps li::before{
+  content:counter(s);position:absolute;left:0;top:1px;
+  font-family:var(--mono);font-size:11px;font-weight:700;color:var(--hot);
+}
+ol.steps b{color:var(--chrome);font-weight:600}
+
+.cmds{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.cmds code{
+  font-family:var(--mono);font-size:11px;color:var(--amber);
+  background:rgba(240,180,41,.09);border:1px solid rgba(240,180,41,.2);
+  border-radius:5px;padding:3px 8px;
+}
+
+.note{
+  border-left:2px solid var(--hot);padding:2px 0 2px 16px;
+  color:var(--dim);font-size:14px;margin-top:34px;
+}
+.note b{color:var(--chrome)}
+
+footer{margin-top:46px;padding-top:20px;border-top:1px solid var(--edge);font-size:12px;color:var(--dimmer)}
+footer a{color:var(--dim)}
+a{color:var(--hot)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--live);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="pill"><i></i>No account, no server, no key</div>
+    <h1>Stream<span>Games</span></h1>
+    <p class="sub">Interactive chat games for Kick streamers. Each one is a single page you point OBS at &mdash; it talks to your chat directly, keeps its own scores, and never checks in with anybody.</p>
+  </header>
+
+  <h2>Games</h2>
+
+  <div class="game">
+    <div class="top">
+      <span class="name">Plinko</span>
+      <span class="tag">Ready</span>
+    </div>
+    <p class="desc">Chat drops balls down a pin board into scoring slots. Persistent leaderboards, ball credits, per-viewer colours, and penalty slots so a bad drop actually costs something.</p>
+
+    <div class="url">
+      <div class="lbl">Browser source URL</div>
+      <div class="row">
+        <input id="uOverlay" readonly>
+        <button data-copy="uOverlay">Copy</button>
+      </div>
+    </div>
+    <div class="url">
+      <div class="lbl">Control dock URL</div>
+      <div class="row">
+        <input id="uPanel" readonly>
+        <button data-copy="uPanel">Copy</button>
+      </div>
+    </div>
+
+    <div class="cmds">
+      <code>!drop</code><code>!drop 3</code><code>!color red</code><code>!balls</code>
+    </div>
+  </div>
+
+  <div class="game soon">
+    <div class="top">
+      <span class="name">More coming</span>
+      <span class="tag soon">In progress</span>
+    </div>
+    <p class="desc">The board, economy and chat layers are shared, so the next games plug into the same leaderboards and credits.</p>
+  </div>
+
+  <h2>Setting it up</h2>
+  <ol class="steps">
+    <li>In OBS, add a <b>Browser source</b> and paste the browser source URL. Set it to <b>1920&times;1080</b> and tick <b>Shutdown source when not visible</b> off.</li>
+    <li>Open <b>View &rarr; Docks &rarr; Custom Browser Docks</b>, name it Plinko and paste the control dock URL.</li>
+    <li>In the dock, enter your <b>chatroom ID</b>. On your channel page, open devtools &rarr; Network &rarr; WS, and look for <code>chatrooms.NNNNN.v2</code>.</li>
+    <li>Type <b>!drop</b> in your own chat to confirm it's connected.</li>
+  </ol>
+
+  <div class="note">
+    <b>Why it works this way.</b> Everything runs inside OBS on your own machine. There's no licence check and no account, so there's no server that can go down and take your widget with it. If this project ever stops being maintained, the files keep working &mdash; and the source is public, so anyone can host their own copy.
+  </div>
+
+  <h2>Diagnostics</h2>
+  <ol class="steps">
+    <li><a href="probe/?role=overlay">Bridge probe &mdash; overlay role</a></li>
+    <li><a href="probe/?role=panel">Bridge probe &mdash; panel role</a></li>
+  </ol>
+
+  <footer>
+    Open source. <a id="repoLink" href="#">View on GitHub</a>
+  </footer>
+
+</div>
+
+<script>
+"use strict";
+/* Build absolute URLs from wherever this page is actually served, so they're
+   right regardless of user, repo name, or custom domain. */
+const base = location.href.replace(/index\.html?$/, "").replace(/[^/]*$/, "");
+document.getElementById("uOverlay").value = base + "plinko/?obs=1";
+document.getElementById("uPanel").value   = base + "plinko/panel.html";
+
+const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+if (m){
+  const repo = location.pathname.split("/").filter(Boolean)[0] || "";
+  document.getElementById("repoLink").href = `https://github.com/${m[1]}/${repo}`;
+}
+
+for (const btn of document.querySelectorAll("[data-copy]")){
+  btn.addEventListener("click", async () => {
+    const input = document.getElementById(btn.dataset.copy);
+    try { await navigator.clipboard.writeText(input.value); }
+    catch(e){ input.select(); document.execCommand("copy"); }
+    const was = btn.textContent;
+    btn.textContent = "Copied"; btn.classList.add("done");
+    setTimeout(()=>{ btn.textContent = was; btn.classList.remove("done"); }, 1400);
+  });
+}
+</script>
+</body>
+</html>

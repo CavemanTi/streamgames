@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plinko — stream overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --panel:rgba(12,8,22,.82);
+  --edge:rgba(232,228,240,.11);
+  --edge-hi:rgba(232,228,240,.22);
+  --chrome:#EDEAF5;
+  --dim:#8C85A3;
+  --dimmer:#5C566E;
+  --live:#53FC18;
+  --warn:#FA5A1E;
+
+  --h0:#4A4266; --h1:#2E6FD6; --h2:#12B3A0;
+  --h3:#F0B429; --h4:#FA5A1E; --h5:#FF2D8E;
+  --n0:#6A5C74; --n1:#8E4A5C;
+
+  --display:'Anton','Haettenschweiler','Arial Narrow',sans-serif;
+  --ui:'Space Grotesk',system-ui,-apple-system,sans-serif;
+  --mono:'Space Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:transparent;font-family:var(--ui);color:var(--chrome);overflow:hidden;-webkit-font-smoothing:antialiased}
+body.preview{
+  background:
+    radial-gradient(1100px 700px at 22% 12%, #241640 0%, transparent 62%),
+    radial-gradient(900px 620px at 88% 88%, #0E2B3A 0%, transparent 58%),
+    #08050F;
+}
+#stage{position:relative;width:100vw;height:100vh;display:flex;gap:16px;padding:16px}
+#boardWrap{position:relative;flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-width:0}
+#board{display:block}
+#rail{flex:0 0 314px;display:flex;flex-direction:column;gap:11px;min-height:0}
+
+.card{
+  position:relative;background:var(--panel);border:1px solid var(--edge);
+  border-radius:13px;padding:13px 15px 15px;
+  backdrop-filter:blur(10px) saturate(1.25);
+  box-shadow:0 18px 44px -18px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
+.card-head .label{font-size:10px;font-weight:700;letter-spacing:.19em;text-transform:uppercase;color:var(--dimmer)}
+
+#brand{padding:15px}
+#brand .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#brand .name{font-family:var(--display);font-size:29px;line-height:.9;letter-spacing:.02em;text-transform:uppercase}
+#brand .name span{color:var(--h5)}
+#brand .live{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:var(--dimmer)}
+#brand .live.on{color:var(--live)}
+#brand .dot{width:6px;height:6px;border-radius:50%;background:var(--dimmer)}
+#brand .live.on .dot{background:var(--live);box-shadow:0 0 9px var(--live)}
+#brand .meta{display:flex;gap:16px;margin-top:12px;padding-top:11px;border-top:1px solid var(--edge)}
+#brand .stat{display:flex;flex-direction:column;gap:2px}
+#brand .stat .k{font-family:var(--mono);font-size:16px;font-weight:700;line-height:1}
+#brand .stat .v{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dimmer)}
+#brand .stat.q .k{color:var(--warn)}
+
+.tabs{display:flex;gap:3px}
+.tabs button{font-size:9px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  background:transparent;color:var(--dimmer);border:1px solid transparent;border-radius:5px;
+  padding:4px 8px;cursor:pointer;transition:.16s;font-family:var(--ui)}
+.tabs button:hover{color:var(--dim)}
+.tabs button.on{background:rgba(237,234,245,.11);color:var(--chrome);border-color:var(--edge-hi)}
+
+ol#lb{list-style:none;display:flex;flex-direction:column;gap:2px}
+ol#lb li{position:relative;display:grid;grid-template-columns:17px 9px 1fr auto;align-items:center;gap:8px;
+  padding:5px 7px;border-radius:6px;overflow:hidden;font-size:13px}
+ol#lb .bar{position:absolute;inset:0 auto 0 0;border-radius:6px;
+  background:linear-gradient(90deg, rgba(255,45,142,.20), rgba(255,45,142,.02))}
+ol#lb li:nth-child(n+4) .bar{background:linear-gradient(90deg, rgba(237,234,245,.08), rgba(237,234,245,.01))}
+ol#lb .rank{position:relative;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--dimmer)}
+ol#lb li:nth-child(1) .rank{color:var(--h5)}
+ol#lb li:nth-child(2) .rank{color:var(--h4)}
+ol#lb li:nth-child(3) .rank{color:var(--h3)}
+ol#lb .swatch{position:relative;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+ol#lb .who{position:relative;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ol#lb .pts{position:relative;font-family:var(--mono);font-weight:700;font-size:12px}
+
+#feed{display:flex;flex-direction:column;gap:1px}
+#feed .line{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0;white-space:nowrap;overflow:hidden}
+#feed .chip{width:6px;height:6px;border-radius:2px;flex:0 0 auto}
+#feed .who{color:var(--chrome);font-weight:500;overflow:hidden;text-overflow:ellipsis}
+#feed .val{font-family:var(--mono);font-weight:700;font-size:12px;margin-left:auto}
+#feed .note{color:var(--dimmer);font-size:11px;font-style:italic}
+
+#swatches{display:flex;flex-wrap:wrap;gap:5px}
+#swatches .sw{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--dim);
+  background:rgba(237,234,245,.05);border-radius:20px;padding:3px 8px 3px 4px}
+#swatches .sw i{width:9px;height:9px;border-radius:50%;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.45)}
+
+.empty{font-size:12px;color:var(--dimmer);font-style:italic;padding:4px 0}
+
+#console{position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:linear-gradient(180deg,rgba(10,6,18,.6),#0A0612 34%);
+  border-top:1px solid var(--edge);padding:11px 16px;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#console.hide{display:none}
+#console input{font-family:var(--mono);font-size:12px;background:#180F2B;color:var(--chrome);
+  border:1px solid var(--edge);border-radius:7px;padding:8px 11px}
+#chatUser{width:140px}
+#chatMsg{flex:1 1 260px}
+#console button{font-family:var(--ui);font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  background:var(--live);color:#052008;border:0;border-radius:7px;padding:9px 15px;cursor:pointer;transition:.15s}
+#console button:hover{filter:brightness(1.12)}
+#console button.ghost{background:transparent;color:var(--dim);border:1px solid var(--edge)}
+#console button.ghost:hover{color:var(--chrome);border-color:var(--edge-hi)}
+#console .fps{font-family:var(--mono);font-size:11px;color:var(--dimmer);margin-left:auto}
+
+button:focus-visible,input:focus-visible{outline:2px solid var(--live);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.card{backdrop-filter:none}#brand .live.on .dot{box-shadow:none}}
+@media (max-width:1180px){#rail{flex-basis:250px}}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="boardWrap"><canvas id="board"></canvas></div>
+  <aside id="rail">
+    <section class="card" id="brand">
+      <div class="row">
+        <div class="name">PLIN<span>KO</span></div>
+        <div class="live" id="liveTag"><span class="dot"></span><span id="liveTxt">Offline</span></div>
+      </div>
+      <div class="meta">
+        <div class="stat"><span class="k" id="sDrops">0</span><span class="v">Drops</span></div>
+        <div class="stat"><span class="k" id="sBest">—</span><span class="v">Best</span></div>
+        <div class="stat"><span class="k" id="sPlayers">0</span><span class="v">Players</span></div>
+        <div class="stat q"><span class="k" id="sQueue">0</span><span class="v">Queued</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <span class="label">Leaderboard</span>
+        <span class="tabs"><button id="tabDay" class="on">Today</button><button id="tabAll">All time</button></span>
+      </div>
+      <ol id="lb"></ol>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><span class="label">Last drops</span></div>
+      <div id="feed"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><span class="label">Ball colours · !color</span></div>
+      <div id="swatches"></div>
+    </section>
+  </aside>
+</div>
+
+<div id="console">
+  <input id="chatUser" placeholder="username" value="testviewer">
+  <input id="chatMsg" placeholder="!drop · !drop 3 · !color red · !balls" value="!drop">
+  <button id="send">Send as chat</button>
+  <button id="rain" class="ghost">Raid: 400</button>
+  <button id="freeplay" class="ghost">Free play: on</button>
+  <button id="reset" class="ghost">Reset day</button>
+  <span class="fps" id="fps">—</span>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const CONFIG = {
+  chatroomId: 1313654,
+  rows: 12,
+  slotValues: [-1, -2, 5, 10, 25, 50, 100],
+
+  // the only colours that exist. Anything else is ignored.
+  palette: {
+    white:"#FFFFFF", red:"#FF3B4E", blue:"#3B9BFF", green:"#53FC18",
+    orange:"#FA5A1E", yellow:"#FFD93B", pink:"#FF2D8E", purple:"#A855F7",
+    cyan:"#22D3EE", gold:"#F0B429", mint:"#5BE9B9", coral:"#FF7A6B",
+  },
+  defaultColor: "#FFFFFF",
+
+  board: { maxActive:300, maxQueue:3000, releasePerFrame:4 },
+
+  economy: {
+    freePlay:true, startingBalls:3, maxPerDrop:5, cooldownSec:30,
+    watchEveryMin:10, watchBalls:1, onSub:5, onGiftSub:3,
+  },
+
+  physics: { gravity:0.90, restitution:0.50, damping:0.990, jitter:0.45, maxVx:0.75, substeps:4 },
+  idleCtaAfterSec: 14,
+  labelThreshold: 45,     // above this many balls, skip landing labels
+  targetFps: 40,
+};
+
+const DEBUG_FRAMES = false;
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ============================================================
+   STORAGE
+   ============================================================ */
+const Store = (() => {
+  let ok = true;
+  try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); } catch(e){ ok=false; }
+  const mem = {};
+  return {
+    get(k,f){ try { const v = ok?localStorage.getItem(k):mem[k]; return v==null?f:JSON.parse(v);} catch(e){ return f; } },
+    set(k,v){ const s=JSON.stringify(v); try { if(ok) localStorage.setItem(k,s); else mem[k]=s; } catch(e){ mem[k]=s; } }
+  };
+})();
+
+/* ============================================================
+   ECONOMY
+   ============================================================ */
+const todayKey = () => new Date().toISOString().slice(0,10);
+
+const Economy = {
+  users:     Store.get("plinko.users", {}),
+  allTime:   Store.get("plinko.allTime", {}),
+  day:       Store.get("plinko.day", todayKey()),
+  dayScores: Store.get("plinko.dayScores", {}),
+  dayDrops:  Store.get("plinko.dayDrops", 0),
+  dayBest:   Store.get("plinko.dayBest", 0),
+
+  rollDayIfNeeded(){
+    const t = todayKey();
+    if (this.day !== t){
+      this.day=t; this.dayScores={}; this.dayDrops=0; this.dayBest=0;
+      Board.histogram.fill(0); this.save();
+    }
+  },
+  user(n){
+    if (!this.users[n]) this.users[n] = { balls:CONFIG.economy.startingBalls, last:0, color:CONFIG.defaultColor };
+    if (!this.users[n].color) this.users[n].color = CONFIG.defaultColor;
+    return this.users[n];
+  },
+  setColor(n, hex){ this.user(n).color = hex; this.save(); UI.renderBoard(); },
+  canDrop(n,c){
+    this.rollDayIfNeeded();
+    const u=this.user(n), wait = CONFIG.economy.cooldownSec*1000 - (Date.now()-u.last);
+    if (wait>0) return { ok:false, why:`${n} on cooldown · ${Math.ceil(wait/1000)}s` };
+    if (!CONFIG.economy.freePlay && u.balls<c) return { ok:false, why:`${n} needs ${c}, has ${u.balls}` };
+    return { ok:true };
+  },
+  spend(n,c){ const u=this.user(n); u.last=Date.now(); if(!CONFIG.economy.freePlay) u.balls-=c; this.save(); },
+  grant(n,x){ this.user(n).balls+=x; this.save(); },
+  award(n,pts){
+    this.rollDayIfNeeded();
+    this.dayScores[n]=(this.dayScores[n]||0)+pts;
+    this.allTime[n]=(this.allTime[n]||0)+pts;
+    this.dayDrops++;
+    if (pts>this.dayBest) this.dayBest=pts;
+    this.save(); UI.dirty = true;
+  },
+  resetDay(){
+    this.dayScores={}; this.dayDrops=0; this.dayBest=0;
+    Board.histogram.fill(0); this.save(); UI.renderBoard(); UI.renderStats();
+  },
+  top(which,n=7){
+    const src = which==="all" ? this.allTime : this.dayScores;
+    return Object.entries(src).sort((a,b)=>b[1]-a[1]).slice(0,n);
+  },
+  _dirty:false,
+  save(){ this._dirty = true; },
+  flush(){
+    if (!this._dirty) return;
+    this._dirty = false;
+    Store.set("plinko.users",this.users); Store.set("plinko.allTime",this.allTime);
+    Store.set("plinko.day",this.day);     Store.set("plinko.dayScores",this.dayScores);
+    Store.set("plinko.dayDrops",this.dayDrops); Store.set("plinko.dayBest",this.dayBest);
+  }
+};
+
+/* ============================================================
+   BOARD
+   ============================================================ */
+const canvas = document.getElementById("board");
+const ctx = canvas.getContext("2d");
+const ease = t => 1 - Math.pow(1-t, 3);
+
+const Board = {
+  W:0,H:0,dpr:1,s:0,ballR:0,pegR:0,rowGap:0,topY:0,
+  pegs:[], pegRows:[], slots:[], values:[], ramp:[], colorFor:{}, histogram:[],
+  fieldTop:0, slotTop:0, slotH:0, slotR:0, cabBottom:0, leftWall:0, rightWall:0, hopperY:0,
+  pegLayer:null,
+
+  buildValues(){
+    const half = CONFIG.slotValues.slice(1);
+    this.values = [...half.slice().reverse(), CONFIG.slotValues[0], ...half];
+    const cs = getComputedStyle(document.documentElement);
+    this.ramp    = ["--h0","--h1","--h2","--h3","--h4","--h5"].map(v=>cs.getPropertyValue(v).trim());
+    this.negRamp = ["--n0","--n1"].map(v=>cs.getPropertyValue(v).trim());
+    if (this.histogram.length !== this.values.length) this.histogram = new Array(this.values.length).fill(0);
+
+    /* Positive values log-scale across the heat ramp. Penalties can't use it
+       (log of a negative is NaN), so they get their own cold ramp, deepest
+       for the worst value. */
+    const pos = this.values.filter(v=>v>0);
+    const mx = pos.length?Math.max(...pos):1, mn = pos.length?Math.min(...pos):1;
+    const negs = [...new Set(this.values.filter(v=>v<=0))].sort((a,b)=>a-b);
+    this.maxValue = Math.max(...this.values);
+    this.colorFor = {};
+    for (const v of this.values){
+      if (v<=0){
+        const i = negs.indexOf(v);
+        const k = negs.length<2 ? this.negRamp.length-1
+                : Math.round((1 - i/(negs.length-1))*(this.negRamp.length-1));
+        this.colorFor[v] = this.negRamp[k];
+      } else {
+        const t=(Math.log(v)-Math.log(mn))/Math.max(Math.log(mx)-Math.log(mn),1e-4);
+        this.colorFor[v]=this.ramp[Math.min(this.ramp.length-1, Math.round(t*(this.ramp.length-1)))];
+      }
+    }
+  },
+  heat(v){
+    if (this.colorFor[v]) return this.colorFor[v];
+    const sorted=this.values.slice().sort((a,b)=>a-b);
+    let best=sorted[0]; for (const k of sorted) if (k<=v) best=k;
+    return this.colorFor[best] || this.ramp[0];
+  },
+
+  layout(){
+    const wrap=document.getElementById("boardWrap"), ratio=0.80;
+    let h=wrap.clientHeight, w=h*ratio;
+    if (w>wrap.clientWidth){ w=wrap.clientWidth; h=w/ratio; }
+
+    this.dpr=Math.min(window.devicePixelRatio||1,2);
+    this.W=Math.floor(w); this.H=Math.floor(h);
+    canvas.width=this.W*this.dpr; canvas.height=this.H*this.dpr;
+    canvas.style.width=this.W+"px"; canvas.style.height=this.H+"px";
+    ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+
+    const R=CONFIG.rows;
+    this.s=this.W/(R+3.4);
+    this.hopperY=this.H*0.028;
+    this.fieldTop=this.H*0.095;
+    this.topY=this.H*0.175;
+    this.rowGap=(this.H*0.645)/R;
+
+    this.pegs=[]; this.pegRows=[];
+    for (let i=0;i<R;i++){
+      const n=i+3, startX=this.W/2-(n-1)*this.s/2, row=[];
+      for (let j=0;j<n;j++){
+        const p={x:startX+j*this.s, y:this.topY+i*this.rowGap, flash:0};
+        this.pegs.push(p); row.push(p);
+      }
+      this.pegRows.push(row);
+    }
+
+    const lastN=R+2;
+    this.leftWall=this.W/2-(lastN-1)*this.s/2-this.s*0.5;
+    this.rightWall=this.W/2+(lastN-1)*this.s/2+this.s*0.5;
+    this.slotTop=this.topY+(R-1)*this.rowGap+this.rowGap*0.78;
+    this.slots=[];
+    const sw=(this.rightWall-this.leftWall)/this.values.length;
+    this.slotH = sw;                       // square tiles
+    this.slotR = Math.max(4, sw*0.22);
+    this.cabBottom = this.slotTop + this.slotH + this.H*0.03;
+    for (let i=0;i<this.values.length;i++)
+      this.slots.push({x:this.leftWall+sw*i, w:sw, value:this.values[i], flash:0});
+
+    this.ballR=this.s*0.235;
+    this.pegR=this.s*0.125;
+
+    Sprites.clear();
+    this.buildPegLayer();
+  },
+
+  /* pegs never move — render them once and blit */
+  buildPegLayer(){
+    const c=document.createElement("canvas");
+    c.width=this.W*this.dpr; c.height=this.H*this.dpr;
+    const g=c.getContext("2d");
+    g.setTransform(this.dpr,0,0,this.dpr,0,0);
+    for (const p of this.pegs) paintPeg(g,p.x,p.y,false);
+    this.pegLayer=c;
+  }
+};
+
+function paintPeg(g,x,y,lit){
+  g.beginPath(); g.arc(x, y+Board.pegR*0.5, Board.pegR*0.9, 0, 7);
+  g.fillStyle="rgba(0,0,0,.34)"; g.fill();
+  const rg=g.createRadialGradient(x-Board.pegR*0.4, y-Board.pegR*0.45, Board.pegR*0.12, x, y, Board.pegR*1.15);
+  rg.addColorStop(0, lit?"#FFFFFF":"#DAD5EA");
+  rg.addColorStop(.6, lit?"#EFEAFA":"#8E86A8");
+  rg.addColorStop(1, "#4A4360");
+  g.beginPath(); g.arc(x,y,Board.pegR,0,7); g.fillStyle=rg; g.fill();
+}
+
+/* ============================================================
+   SPRITE CACHE — one offscreen ball per colour, drawn once
+   ============================================================ */
+const Sprites = {
+  cache: new Map(),
+  litPeg: null,
+  clear(){ this.cache.clear(); this.litPeg=null; },
+  peg(){
+    if (this.litPeg) return this.litPeg;
+    const R=Board.pegR, size=Math.ceil(R*4);
+    const c=document.createElement("canvas");
+    c.width=size*Board.dpr; c.height=size*Board.dpr;
+    const g=c.getContext("2d");
+    g.setTransform(Board.dpr,0,0,Board.dpr,0,0);
+    paintPeg(g, size/2, size/2, true);
+    this.litPeg={canvas:c,size};
+    return this.litPeg;
+  },
+  ball(color){
+    let s = this.cache.get(color);
+    if (s) return s;
+    const R = Board.ballR, pad = R*0.5;
+    const size = Math.ceil((R+pad)*2);
+    const c = document.createElement("canvas");
+    c.width = size*Board.dpr; c.height = size*Board.dpr;
+    const g = c.getContext("2d");
+    g.setTransform(Board.dpr,0,0,Board.dpr,0,0);
+    const cx = size/2, cy = size/2;
+
+    g.beginPath(); g.arc(cx, cy+R*0.6, R*0.85, 0, 7);
+    g.fillStyle="rgba(0,0,0,.30)"; g.fill();
+
+    const rg=g.createRadialGradient(cx-R*0.38, cy-R*0.42, R*0.1, cx, cy, R*1.1);
+    rg.addColorStop(0,"#FFFFFF"); rg.addColorStop(.34,color); rg.addColorStop(1,shade(color,-0.42));
+    g.beginPath(); g.arc(cx,cy,R,0,7); g.fillStyle=rg; g.fill();
+    g.lineWidth=1; g.strokeStyle="rgba(10,6,18,.5)"; g.stroke();
+
+    s = { canvas:c, size };
+    this.cache.set(color, s);
+    return s;
+  }
+};
+
+/* ============================================================
+   BALLS + QUEUE
+   ============================================================ */
+const balls = [];
+const queue = [];
+const fx = [];
+let lastDropAt = Date.now();
+
+function enqueue(user, color, count){
+  let accepted = 0;
+  for (let i=0;i<count;i++){
+    if (queue.length >= CONFIG.board.maxQueue) break;
+    queue.push({ user, color });
+    accepted++;
+  }
+  return accepted;
+}
+
+function spawn(user, color){
+  balls.push({
+    x: Board.W/2 + (Math.random()-0.5)*Board.s*0.35,
+    y: Board.hopperY + Board.s*0.5,
+    vx:(Math.random()-0.5)*0.4, vy:0,
+    color, user, trail:[], age:0, markY:0
+  });
+  lastDropAt = Date.now();
+}
+
+function drainQueue(){
+  let released = 0;
+  while (queue.length && balls.length < CONFIG.board.maxActive && released < CONFIG.board.releasePerFrame){
+    const d = queue.shift();
+    spawn(d.user, d.color);
+    released++;
+  }
+}
+
+function addRing(x,y,color,scale=1){ if(!REDUCED) fx.push({kind:"ring",x,y,t:0,life:38,color,scale}); }
+function addSparks(x,y,color,n=9){
+  if (REDUCED || balls.length > 120) return;
+  for (let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, sp=1.6+Math.random()*3.4;
+    fx.push({kind:"spark",x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1.4,t:0,life:34,color});
+  }
+}
+function addChit(x,y,text,color){ fx.push({kind:"chit",x,y,t:0,life:78,color,text}); }
+
+/* ============================================================
+   SIMULATION
+   ============================================================ */
+function step(){
+  drainQueue();
+
+  const P=CONFIG.physics, sub=P.substeps, g=P.gravity/sub;
+
+  for (let bi=balls.length-1; bi>=0; bi--){
+    const b=balls[bi];
+
+    for (let s=0;s<sub;s++){
+      b.vy+=g; b.vx*=P.damping;
+      b.x+=b.vx/sub; b.y+=b.vy/sub;
+
+      // only test pegs in the rows we're near
+      const ri = Math.floor((b.y - Board.topY)/Board.rowGap);
+      for (let r=Math.max(0,ri-1); r<=Math.min(Board.pegRows.length-1, ri+1); r++){
+        const row=Board.pegRows[r];
+        for (let i=0;i<row.length;i++){
+          const p=row[i];
+          const dx=b.x-p.x, dy=b.y-p.y, minD=Board.ballR+Board.pegR;
+          if (Math.abs(dx)>minD || Math.abs(dy)>minD) continue;
+          const d2=dx*dx+dy*dy;
+          if (d2>=minD*minD || d2===0) continue;
+          const d=Math.sqrt(d2);
+          let nx=dx/d, ny=dy/d;
+
+          /* A ball landing dead-centre on a pin has a near-vertical normal,
+             so it bounces straight up and settles on the apex — the wiggle.
+             Tilt the normal off-centre so every contact has a real sideways
+             component to escape along. Keeps the ball's existing bias; only
+             an exact tie picks a side at random. */
+          const APEX = 0.30;
+          if (ny < 0 && Math.abs(nx) < APEX){
+            nx = (nx === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(nx)) * APEX;
+            ny = -Math.sqrt(1 - APEX*APEX);
+          }
+
+          b.x+=nx*(minD-d); b.y+=ny*(minD-d);
+          const vn=b.vx*nx+b.vy*ny;
+          b.vx=(b.vx-2*vn*nx)*P.restitution;
+          b.vy=(b.vy-2*vn*ny)*P.restitution;
+          b.vx+=(Math.random()-0.5)*P.jitter;
+          p.flash=1;
+        }
+      }
+
+      if (b.x<Board.leftWall+Board.ballR){ b.x=Board.leftWall+Board.ballR; b.vx=Math.abs(b.vx)*P.restitution; }
+      else if (b.x>Board.rightWall-Board.ballR){ b.x=Board.rightWall-Board.ballR; b.vx=-Math.abs(b.vx)*P.restitution; }
+
+      const cap=P.maxVx*Board.s;
+      if (b.vx> cap) b.vx= cap;
+      if (b.vx<-cap) b.vx=-cap;
+    }
+
+    b.age++;
+    if (b.age % 40 === 0){
+      if (b.y-b.markY < Board.ballR){ b.vx+=(Math.random()-0.5)*3.2; b.vy+=1.4; }
+      b.markY=b.y;
+    }
+    /* Last resort. Roughly 1 ball in 3000 finds a spot the nudge can't clear,
+       and a ball frozen on screen mid-stream is worse than one that resolves
+       arbitrarily. After 15s it drops into whatever slot it's over. */
+    if (b.age > 900) b.y = Board.slotTop + Board.slotH;
+
+    if (balls.length <= 90){
+      b.trail.push({x:b.x,y:b.y});
+      if (b.trail.length>8) b.trail.shift();
+    } else if (b.trail.length) b.trail.length = 0;
+
+    if (b.y > Board.slotTop + Board.slotH*0.5){
+      const sw=(Board.rightWall-Board.leftWall)/Board.slots.length;
+      const idx=Math.max(0,Math.min(Board.slots.length-1,Math.floor((b.x-Board.leftWall)/sw)));
+      const slot=Board.slots[idx], c=Board.heat(slot.value), cx=slot.x+slot.w/2;
+
+      slot.flash=1;
+      Board.histogram[idx]++;
+      Economy.award(b.user, slot.value);
+      UI.pushDrop(b.user, slot.value, c, b.color);
+
+      const big = slot.value >= Board.maxValue*0.4;
+      addRing(cx, Board.slotTop, c, big?1.7:1);
+      addSparks(cx, Board.slotTop, c, big?20:8);
+      if (balls.length <= CONFIG.labelThreshold || big)
+        addChit(cx, Board.slotTop-Board.s*0.25, `${b.user}  ${slot.value>0?"+":""}${slot.value}`, c);
+
+      balls.splice(bi,1);
+    }
+  }
+
+  for (const p of Board.pegs) if (p.flash>0) p.flash=Math.max(0,p.flash-0.055);
+  for (const s of Board.slots) if (s.flash>0) s.flash=Math.max(0,s.flash-0.028);
+
+  for (let i=fx.length-1;i>=0;i--){
+    const e=fx[i]; e.t++;
+    if (e.kind==="spark"){ e.x+=e.vx; e.y+=e.vy; e.vy+=0.19; e.vx*=0.97; }
+    if (e.t>=e.life) fx.splice(i,1);
+  }
+  if (fx.length>420) fx.splice(0, fx.length-420);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function rr(x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);     ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawCabinet(){
+  const x=Board.leftWall-Board.s*0.55, w=(Board.rightWall-Board.leftWall)+Board.s*1.1;
+  const h=Board.cabBottom-Board.fieldTop;
+  const g=ctx.createLinearGradient(0,Board.fieldTop,0,Board.cabBottom);
+  g.addColorStop(0,"rgba(34,20,58,.60)"); g.addColorStop(.55,"rgba(14,9,26,.52)"); g.addColorStop(1,"rgba(8,5,16,.62)");
+  ctx.fillStyle=g; rr(x,Board.fieldTop,w,h,16); ctx.fill();
+  ctx.strokeStyle="rgba(237,234,245,.10)"; ctx.lineWidth=1; rr(x,Board.fieldTop,w,h,16); ctx.stroke();
+
+  const lb=ctx.createLinearGradient(Board.leftWall,0,Board.rightWall,0);
+  lb.addColorStop(0,"rgba(255,45,142,0)"); lb.addColorStop(.5,"rgba(237,234,245,.32)"); lb.addColorStop(1,"rgba(46,111,214,0)");
+  ctx.fillStyle=lb; ctx.fillRect(x,Board.fieldTop,w,1);
+}
+
+function drawHopper(){
+  const cx=Board.W/2, w=Board.s*1.5, y=Board.hopperY;
+  const active=Math.max(0, 1-(Date.now()-lastDropAt)/900);
+  ctx.beginPath();
+  ctx.moveTo(cx-w,y); ctx.lineTo(cx+w,y);
+  ctx.lineTo(cx+Board.s*0.42, y+Board.s*0.72); ctx.lineTo(cx-Board.s*0.42, y+Board.s*0.72);
+  ctx.closePath();
+  ctx.fillStyle="rgba(237,234,245,.07)"; ctx.fill();
+  ctx.strokeStyle=`rgba(237,234,245,${0.14+active*0.5})`; ctx.lineWidth=1.5; ctx.stroke();
+  if (active>0 && !REDUCED){
+    ctx.fillStyle=`rgba(255,255,255,${active*0.28})`;
+    ctx.fillRect(cx-Board.s*0.42, y+Board.s*0.72, Board.s*0.84, 2);
+  }
+}
+
+function drawPegs(){
+  if (Board.pegLayer) ctx.drawImage(Board.pegLayer, 0,0, Board.W, Board.H);
+  const sp = Sprites.peg(), half = sp.size/2;
+  for (const p of Board.pegs){
+    if (p.flash<=0) continue;
+    ctx.drawImage(sp.canvas, p.x-half, p.y-half, sp.size, sp.size);
+    if (!REDUCED){
+      ctx.beginPath(); ctx.arc(p.x,p.y,Board.pegR+(1-p.flash)*Board.pegR*2.4,0,7);
+      ctx.strokeStyle=`rgba(255,255,255,${p.flash*0.5})`; ctx.lineWidth=1.2; ctx.stroke();
+    }
+  }
+}
+
+function drawSlots(){
+  for (const s of Board.slots){
+    const c=Board.heat(s.value), f=ease(s.flash), dy=f*4, top=Board.slotTop+dy;
+    const pad=Math.max(2, s.w*0.07);
+    const x=s.x+pad, w=s.w-pad*2, hh=Board.slotH;
+
+    ctx.globalAlpha=0.15+f*0.75; ctx.fillStyle=c;
+    rr(x, top, w, hh, Board.slotR); ctx.fill();
+    ctx.globalAlpha=1;
+
+    ctx.globalAlpha=0.45+f*0.55; ctx.strokeStyle=c; ctx.lineWidth=1.5;
+    rr(x, top, w, hh, Board.slotR); ctx.stroke();
+    ctx.globalAlpha=1;
+
+    if (f>0.02 && !REDUCED){
+      const sh=ctx.createLinearGradient(0, top, 0, top-hh*3);
+      sh.addColorStop(0,hexA(c,0.40*f)); sh.addColorStop(1,hexA(c,0));
+      ctx.fillStyle=sh; ctx.fillRect(x, top-hh*3, w, hh*3);
+    }
+
+    ctx.font=`${Math.floor(Board.s*0.40)}px ${cssVar('--display')}`;
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle = f>0.4 ? "#0A0612" : c;
+    ctx.fillText(String(s.value), x+w/2, top+hh/2+1);
+  }
+}
+
+function drawBalls(){
+  const trails = balls.length <= 90;
+  for (const b of balls){
+    const sp = Sprites.ball(b.color), half = sp.size/2;
+    if (trails){
+      for (let i=0;i<b.trail.length;i++){
+        const t=b.trail[i], k=i/b.trail.length;
+        ctx.globalAlpha=k*k*0.22;
+        const sc=(0.35+k*0.65);
+        ctx.drawImage(sp.canvas, t.x-half*sc, t.y-half*sc, sp.size*sc, sp.size*sc);
+      }
+      ctx.globalAlpha=1;
+    }
+    ctx.drawImage(sp.canvas, b.x-half, b.y-half, sp.size, sp.size);
+  }
+}
+
+function drawFx(){
+  for (const e of fx){
+    const k=e.t/e.life;
+    if (e.kind==="ring"){
+      ctx.beginPath(); ctx.arc(e.x,e.y, ease(k)*Board.s*2.4*e.scale, 0, 7);
+      ctx.strokeStyle=hexA(e.color,(1-k)*0.55); ctx.lineWidth=2.5*(1-k)*e.scale; ctx.stroke();
+    } else if (e.kind==="spark"){
+      ctx.beginPath(); ctx.arc(e.x,e.y,2.2*(1-k),0,7);
+      ctx.fillStyle=hexA(e.color,1-k); ctx.fill();
+    } else if (e.kind==="chit"){
+      const rise=ease(k)*Board.s*1.5;
+      ctx.font=`${Math.floor(Board.s*0.42)}px ${cssVar('--display')}`;
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.globalAlpha = k<.18 ? k/.18 : 1-Math.max(0,(k-.62)/.38);
+      ctx.lineWidth=4; ctx.strokeStyle="rgba(10,6,18,.85)"; ctx.lineJoin="round";
+      ctx.strokeText(e.text, e.x, e.y-rise);
+      ctx.fillStyle=e.color; ctx.fillText(e.text, e.x, e.y-rise);
+      ctx.globalAlpha=1;
+    }
+  }
+}
+
+function drawIdleCta(){
+  const idle=(Date.now()-lastDropAt)/1000;
+  if (balls.length || queue.length || idle<CONFIG.idleCtaAfterSec) return;
+  const a=Math.min(1,(idle-CONFIG.idleCtaAfterSec)/1.4)*(REDUCED?0.7:0.55+0.2*Math.sin(Date.now()/900));
+  const cy=Board.fieldTop+(Board.slotTop-Board.fieldTop)*0.42;
+  ctx.globalAlpha=a; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.font=`${Math.floor(Board.s*1.5)}px ${cssVar('--display')}`;
+  ctx.fillStyle="#EDEAF5"; ctx.fillText("!drop", Board.W/2, cy);
+  ctx.font=`600 ${Math.floor(Board.s*0.28)}px ${cssVar('--ui')}`;
+  ctx.fillStyle="rgba(237,234,245,.6)";
+  ctx.fillText("TYPE IN CHAT TO PLAY", Board.W/2, cy+Board.s*1.05);
+  ctx.globalAlpha=1;
+}
+
+function draw(){
+  ctx.clearRect(0,0,Board.W,Board.H);
+  drawCabinet(); drawIdleCta(); drawHopper();
+  drawSlots(); drawPegs(); drawBalls(); drawFx();
+}
+
+/* Physics runs at a true fixed 60Hz no matter what the render rate is.
+   Rendering is throttled separately to leave CPU for the encoder. */
+const SIM_HZ = 60, SIM_DT = 1000/SIM_HZ;
+let simAcc=0, renderAcc=0, prev=performance.now(), fpsAcc=0, fpsN=0;
+
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt = now - prev; prev = now;
+  if (dt > 250) dt = 250;              // came back from a backgrounded tab
+
+  const t0 = performance.now();
+
+  simAcc += dt;
+  let steps = 0;
+  while (simAcc >= SIM_DT && steps < 5){ step(); simAcc -= SIM_DT; steps++; }
+  if (steps >= 5) simAcc = 0;          // too far behind, stop trying to catch up
+
+  renderAcc += dt;
+  const rBudget = 1000/CONFIG.targetFps;
+  if (renderAcc >= rBudget){
+    renderAcc = Math.min(renderAcc - rBudget, rBudget);
+    draw();
+  }
+
+  fpsAcc += performance.now()-t0; fpsN++;
+  if (fpsN >= 30){
+    const el=document.getElementById("fps");
+    if (el) el.textContent=`${balls.length} balls · ${queue.length} queued · ${(fpsAcc/fpsN).toFixed(2)}ms/frame`;
+    fpsAcc=0; fpsN=0;
+  }
+}
+
+/* helpers */
+function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+function hexA(hex,a){
+  const h=String(hex).replace("#","");
+  const n=parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+function shade(hex,amt){
+  const h=String(hex).replace("#","");
+  const n=parseInt(h.length===3?h.split("").map(c=>c+c).join(""):h,16);
+  const f=v=>Math.max(0,Math.min(255,Math.round(v+255*amt)));
+  return `rgb(${f((n>>16)&255)},${f((n>>8)&255)},${f(n&255)})`;
+}
+
+/* ============================================================
+   COMMANDS
+   ============================================================ */
+function parseCommand(user, text, isMod){
+  const parts=String(text).trim().toLowerCase().split(/\s+/);
+  const cmd=parts[0];
+
+  // !color <name> — unknown names are ignored, silently
+  if (cmd==="!color" || cmd==="!colour"){
+    const name=parts[1];
+    if (!name || !CONFIG.palette[name]) return;
+    Economy.setColor(user, CONFIG.palette[name]);
+    UI.note(`${user} → ${name}`);
+    return;
+  }
+
+  if (cmd==="!balls" || cmd==="!credits"){
+    UI.note(`${user}: ${CONFIG.economy.freePlay ? "free play" : Economy.user(user).balls+" balls"}`);
+    return;
+  }
+
+  if (isMod && cmd==="!plinko"){
+    const sub=parts[1];
+    if (sub==="freeplay"){ setFreePlay(parts[2]!=="off"); return; }
+    if (sub==="give" && parts[2]){ Economy.grant(parts[2], parseInt(parts[3]||"1",10)); UI.note(`gave ${parts[2]} balls`); return; }
+    if (sub==="reset"){ Economy.resetDay(); UI.note("day reset"); return; }
+    if (sub==="clear"){ balls.length=0; queue.length=0; UI.note("board cleared"); return; }
+    return;
+  }
+
+  if (cmd!=="!drop") return;
+
+  let count=1;
+  for (const a of parts.slice(1)) if (/^\d+$/.test(a)) count=parseInt(a,10);
+  count=Math.max(1,Math.min(count,CONFIG.economy.maxPerDrop));
+
+  const chk=Economy.canDrop(user,count);
+  if (!chk.ok){ UI.note(chk.why); return; }
+  Economy.spend(user,count);
+
+  const accepted = enqueue(user, Economy.user(user).color, count);
+  if (accepted < count) UI.note("queue full — some drops refused");
+  UI.renderStats();
+}
+
+function setFreePlay(on){
+  CONFIG.economy.freePlay=on;
+  document.getElementById("freeplay").textContent=`Free play: ${on?"on":"off"}`;
+  UI.note(`free play ${on?"on":"off"}`);
+}
+
+/* ============================================================
+   CHAT — with a staleness watchdog
+   ============================================================ */
+const Chat = {
+  ws:null, lastFrame:0, watchdog:null, retry:0,
+  onMessage:(u,t,m=false)=>parseCommand(u,t,m),
+  mock(u,t,m){ this.onMessage(u,t,m); },
+
+  connectKick({ chatroomId, appKey="32cbd69e4b950bf97679", cluster="us2" }){
+    if (this.ws){ try{ this.ws.onclose=null; this.ws.close(); }catch(e){} }
+    UI.setLive(false, "connecting");
+
+    const ws=new WebSocket(`wss://ws-${cluster}.pusher.com/app/${appKey}?protocol=7&client=js&version=8.5.0&flash=false`);
+    this.ws=ws; this.lastFrame=Date.now();
+
+    ws.onopen=()=>{
+      ws.send(JSON.stringify({event:"pusher:subscribe",data:{auth:"",channel:`chatrooms.${chatroomId}.v2`}}));
+      this.retry=0;
+    };
+
+    ws.onmessage=(ev)=>{
+      this.lastFrame=Date.now();
+      if (DEBUG_FRAMES) console.log("[kick]", ev.data);
+      let frame; try{ frame=JSON.parse(ev.data); }catch(e){ return; }
+
+      if (frame.event==="pusher_internal:subscription_succeeded"){ UI.setLive(true,"live"); UI.note("chat connected"); return; }
+      if (frame.event==="pusher:error"){ console.warn("[kick] error", frame.data); UI.note("chat error — see console"); return; }
+      if (frame.event!=="App\\Events\\ChatMessageEvent") return;
+
+      let d; try{ d=JSON.parse(frame.data); }catch(e){ return; }
+      const badges=(d.sender?.identity?.badges||[]).map(b=>b.type);
+      this.onMessage(d.sender.username, d.content,
+        badges.includes("moderator")||badges.includes("broadcaster"));
+    };
+
+    ws.onclose=()=>{ UI.setLive(false,"reconnecting"); this.scheduleRetry(chatroomId,appKey,cluster); };
+    ws.onerror =()=>{ try{ ws.close(); }catch(e){} };
+
+    /* A socket can die without ever firing close — laptop sleeps, router
+       blips, Pusher drops us silently. Without this the widget looks
+       connected and goes dead for the rest of the stream. */
+    clearInterval(this.watchdog);
+    this.watchdog=setInterval(()=>{
+      if (Date.now()-this.lastFrame > 60000){
+        UI.note("chat went quiet — reconnecting");
+        try{ ws.onclose=null; ws.close(); }catch(e){}
+        this.connectKick({chatroomId,appKey,cluster});
+      }
+    }, 15000);
+  },
+
+  scheduleRetry(chatroomId,appKey,cluster){
+    const wait=Math.min(30000, 2000*Math.pow(2,this.retry++));
+    setTimeout(()=>this.connectKick({chatroomId,appKey,cluster}), wait);
+  }
+};
+
+/* ============================================================
+   UI
+   ============================================================ */
+const UI = {
+  which:"day", feed:[], dirty:false, feedDirty:false,
+
+  setLive(on, txt){
+    document.getElementById("liveTag").classList.toggle("on", !!on);
+    document.getElementById("liveTxt").textContent = txt;
+  },
+
+  renderBoard(){
+    const rows=Economy.top(this.which);
+    const el=document.getElementById("lb");
+    if (!rows.length){ el.innerHTML=`<li class="empty">Nobody's dropped yet</li>`; return; }
+    const max=rows[0][1]||1;
+    el.innerHTML=rows.map(([n,p],i)=>{
+      const col=(Economy.users[n]&&Economy.users[n].color)||CONFIG.defaultColor;
+      return `<li><span class="bar" style="width:${Math.max(6,(p/max)*100)}%"></span>`+
+        `<span class="rank">${String(i+1).padStart(2,"0")}</span>`+
+        `<span class="swatch" style="background:${col}"></span>`+
+        `<span class="who">${esc(n)}</span>`+
+        `<span class="pts">${p.toLocaleString()}</span></li>`;
+    }).join("");
+  },
+
+  renderStats(){
+    document.getElementById("sDrops").textContent=Economy.dayDrops.toLocaleString();
+    document.getElementById("sBest").textContent=Economy.dayBest||"—";
+    document.getElementById("sPlayers").textContent=Object.keys(Economy.dayScores).length;
+    document.getElementById("sQueue").textContent=queue.length;
+  },
+
+  pushDrop(user,value,heat,ballColor){
+    this.feed.unshift(
+      `<div class="line"><span class="chip" style="background:${ballColor}"></span>`+
+      `<span class="who">${esc(user)}</span>`+
+      `<span class="val" style="color:${heat}">${value>0?"+":""}${value}</span></div>`);
+    this.feed=this.feed.slice(0,6); this.feedDirty=true;
+  },
+  note(m){
+    this.feed.unshift(`<div class="line"><span class="note">${esc(m)}</span></div>`);
+    this.feed=this.feed.slice(0,6); this.feedDirty=true;
+  },
+  tick(){
+    if (this.feedDirty){ document.getElementById("feed").innerHTML=this.feed.join(""); this.feedDirty=false; }
+    if (this.dirty){ this.renderBoard(); this.dirty=false; }
+    this.renderStats();
+  },
+
+  renderSwatches(){
+    document.getElementById("swatches").innerHTML=Object.entries(CONFIG.palette)
+      .map(([n,c])=>`<span class="sw"><i style="background:${c}"></i>${n}</span>`).join("");
+  },
+
+};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+if (new URLSearchParams(location.search).get("obs")==="1") document.getElementById("console").classList.add("hide");
+else document.body.classList.add("preview");
+
+Board.buildValues();
+Board.layout();
+UI.renderBoard(); UI.renderStats(); UI.renderSwatches();
+UI.setLive(false,"offline");
+setFreePlay(CONFIG.economy.freePlay);
+
+window.addEventListener("resize", ()=>Board.layout());
+
+document.getElementById("send").onclick=()=>
+  Chat.mock(document.getElementById("chatUser").value.trim()||"viewer",
+            document.getElementById("chatMsg").value, true);
+document.getElementById("chatMsg").addEventListener("keydown",e=>{
+  if (e.key==="Enter") document.getElementById("send").click();
+});
+document.getElementById("rain").onclick=()=>{
+  const names=["kayla_tv","monk3y","GRIT","zeph","doubledown","nyx","bigmike","p1ng","vex","opal"];
+  const cols=Object.values(CONFIG.palette);
+  for (let i=0;i<400;i++) enqueue(names[i%names.length], cols[i%cols.length], 1);
+  UI.renderStats();
+};
+document.getElementById("freeplay").onclick=()=>setFreePlay(!CONFIG.economy.freePlay);
+document.getElementById("reset").onclick=()=>Economy.resetDay();
+document.getElementById("tabDay").onclick=()=>{
+  UI.which="day";
+  document.getElementById("tabDay").classList.add("on");
+  document.getElementById("tabAll").classList.remove("on");
+  UI.renderBoard();
+};
+document.getElementById("tabAll").onclick=()=>{
+  UI.which="all";
+  document.getElementById("tabAll").classList.add("on");
+  document.getElementById("tabDay").classList.remove("on");
+  UI.renderBoard();
+};
+
+setInterval(()=>{
+  for (const n of Object.keys(Economy.users)) Economy.grant(n, CONFIG.economy.watchBalls);
+}, CONFIG.economy.watchEveryMin*60000);
+
+setInterval(()=>UI.tick(), 250);
+setInterval(()=>Economy.flush(), 2000);
+window.addEventListener("beforeunload", ()=>Economy.flush());
+
+Chat.connectKick({ chatroomId: CONFIG.chatroomId });
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

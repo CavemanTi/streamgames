@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bridge probe</title>
+<style>
+:root{ --ok:#53FC18; --bad:#FF3B4E; --wait:#F0B429; --dim:#8C85A3; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;
+  background:#0A0612;color:#EDEAF5;padding:14px;min-height:100vh;
+  font-size:13px;
+}
+h1{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-bottom:2px}
+.role{font-size:22px;font-weight:700;margin-bottom:14px}
+.verdict{
+  border-radius:10px;padding:14px;margin-bottom:14px;
+  font-size:19px;font-weight:700;letter-spacing:.02em;text-align:center;
+  border:2px solid var(--wait);color:var(--wait);
+}
+.verdict.ok{border-color:var(--ok);color:var(--ok)}
+.verdict.bad{border-color:var(--bad);color:var(--bad)}
+.verdict small{display:block;font-size:11px;font-weight:400;letter-spacing:0;margin-top:5px;opacity:.8}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td{padding:6px 0;border-bottom:1px solid rgba(237,234,245,.09);vertical-align:top}
+td:first-child{color:var(--dim);width:48%}
+td:last-child{text-align:right;font-family:'Space Mono',ui-monospace,monospace}
+.y{color:var(--ok)} .n{color:var(--bad)} .w{color:var(--wait)}
+.hint{margin-top:14px;font-size:11px;color:var(--dim);line-height:1.5}
+code{background:rgba(237,234,245,.09);padding:1px 5px;border-radius:3px;font-family:'Space Mono',monospace}
+</style>
+</head>
+<body>
+
+<h1>Bridge probe</h1>
+<div class="role" id="role">—</div>
+
+<div class="verdict" id="verdict">WAITING<small id="verdictSub">start the other instance</small></div>
+
+<table>
+  <tr><td>localStorage</td><td id="ls">—</td></tr>
+  <tr><td>BroadcastChannel</td><td id="bc">—</td></tr>
+  <tr><td>Origin</td><td id="origin">—</td></tr>
+  <tr><td>My heartbeats sent</td><td id="sent">0</td></tr>
+  <tr><td>Peer seen via storage</td><td id="viaLs">never</td></tr>
+  <tr><td>Peer seen via channel</td><td id="viaBc">never</td></tr>
+</table>
+
+<div class="hint" id="hint"></div>
+
+<script>
+"use strict";
+
+const params = new URLSearchParams(location.search);
+const ROLE = params.get("role") === "panel" ? "panel" : "overlay";
+const PEER = ROLE === "panel" ? "overlay" : "panel";
+document.getElementById("role").textContent = ROLE.toUpperCase();
+document.getElementById("origin").textContent = location.origin || "(file — will not work)";
+
+/* capability checks */
+let hasLs = true;
+try { localStorage.setItem("__probe","1"); localStorage.removeItem("__probe"); }
+catch(e){ hasLs = false; }
+
+let bc = null;
+try { bc = new BroadcastChannel("plinko-probe"); } catch(e){ bc = null; }
+
+document.getElementById("ls").innerHTML = hasLs
+  ? '<span class="y">available</span>' : '<span class="n">blocked</span>';
+document.getElementById("bc").innerHTML = bc
+  ? '<span class="y">available</span>' : '<span class="n">unavailable</span>';
+
+/* state */
+let sent = 0;
+let lastLs = 0, lastBc = 0;
+
+function beat(){
+  sent++;
+  const msg = { role: ROLE, n: sent, at: Date.now() };
+  if (hasLs){ try { localStorage.setItem("probe."+ROLE, JSON.stringify(msg)); } catch(e){} }
+  if (bc){ try { bc.postMessage(msg); } catch(e){} }
+  document.getElementById("sent").textContent = sent;
+}
+
+if (bc) bc.onmessage = (ev) => {
+  if (ev.data && ev.data.role === PEER) lastBc = Date.now();
+};
+
+/* poll storage for the peer — covers the case where BroadcastChannel
+   is isolated between contexts but storage still shares */
+function pollStorage(){
+  if (!hasLs) return;
+  try {
+    const raw = localStorage.getItem("probe."+PEER);
+    if (raw){
+      const m = JSON.parse(raw);
+      if (Date.now() - m.at < 6000) lastLs = m.at;
+    }
+  } catch(e){}
+}
+
+function fmt(t){
+  if (!t) return '<span class="n">never</span>';
+  const age = ((Date.now()-t)/1000).toFixed(1);
+  return age < 6 ? `<span class="y">${age}s ago</span>` : `<span class="w">${age}s ago</span>`;
+}
+
+function render(){
+  pollStorage();
+  document.getElementById("viaLs").innerHTML = fmt(lastLs);
+  document.getElementById("viaBc").innerHTML = fmt(lastBc);
+
+  const freshLs = lastLs && Date.now()-lastLs < 6000;
+  const freshBc = lastBc && Date.now()-lastBc < 6000;
+  const v = document.getElementById("verdict");
+  const s = document.getElementById("verdictSub");
+  const hint = document.getElementById("hint");
+
+  if (!hasLs){
+    v.className = "verdict bad"; v.firstChild.textContent = "NO STORAGE";
+    s.textContent = "this context can't persist anything";
+    hint.innerHTML = "Serve over <code>http</code>, not <code>file://</code>.";
+    return;
+  }
+  if (freshLs || freshBc){
+    v.className = "verdict ok"; v.firstChild.textContent = "BRIDGE OK";
+    s.textContent = freshBc && freshLs ? "channel + storage both work"
+                  : freshBc ? "channel only — storage not shared"
+                  : "storage only — poll instead of push";
+    hint.innerHTML = freshBc
+      ? "Live updates will work. Panel can push settings instantly."
+      : "Storage is shared but BroadcastChannel is isolated. Panel still works &mdash; the overlay polls for changes instead of receiving a push. Slightly less instant, no other difference.";
+  } else {
+    v.className = "verdict"; v.firstChild.textContent = "NO CONTACT";
+    s.textContent = "peer not seen — is the other instance running?";
+    hint.innerHTML = "Both instances must be on the <b>same origin</b>. If this stays red with both running inside OBS, the docks and browser sources are isolated and the panel needs a different design.";
+  }
+}
+
+setInterval(beat, 1000);
+setInterval(render, 400);
+beat(); render();
+</script>
+</body>
+</html>
