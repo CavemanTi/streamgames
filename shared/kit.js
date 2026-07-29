@@ -39,6 +39,7 @@ const DEFAULTS = {
     messageCooldownSec: 5,   // any-mode rate limit, hard floor of 2
     freeMessages: true,      // plain messages don't spend credits
   },
+  display: { background: "vignette" },   // "vignette" | "transparent"
   useAvatars: false,         // needs OAuth — Pusher gives no profile picture
 
   /* gravity is the only physics value worth exposing — the rest is

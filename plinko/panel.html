@@ -132,14 +132,22 @@ ol#lb .p{font-family:var(--mono);font-weight:700;font-size:11px}
 </div>
 
 <div class="sec">
-  <h2>Leaderboard
-    <span class="tabs"><button id="tabDay" class="on">Today</button><button id="tabAll">All time</button></span>
-  </h2>
+  <h2>Leaderboard</h2>
   <ol id="lb"></ol>
   <div class="btns" style="margin-top:9px">
-    <button class="danger sm" id="btnResetDay">Clear today</button>
-    <button class="danger sm" id="btnResetAll">Clear all time</button>
+    <button class="danger sm" id="btnResetAll">Clear leaderboard</button>
   </div>
+  <div class="note">Scores stack until you clear them.</div>
+</div>
+
+<div class="sec">
+  <h2>Appearance</h2>
+  <div class="row"><label>Board background<span class="hint">transparent = pure overlay</span></label>
+    <span class="tabs" id="bgTabs">
+      <button data-bg="vignette" id="bgVig">Vignette</button>
+      <button data-bg="transparent" id="bgTrans">None</button>
+    </span></div>
+  <div class="note">Reload the browser source in OBS after changing this.</div>
 </div>
 
 <div class="sec">
@@ -213,7 +221,7 @@ const $ = id => document.getElementById(id);
 const cmd = (c) => Bridge.send("command", c);
 
 /* ---------- live state from the overlay --------------------- */
-let state = null, lastState = 0, which = "day";
+let state = null, lastState = 0;
 
 Bridge.on("state", (s) => { state = s; lastState = Date.now(); renderState(); });
 
@@ -234,7 +242,7 @@ function renderState(){
   $("sDrops").textContent   = state.drops;
   $("sPlayers").textContent = state.players;
 
-  const rows = (which === "all" ? state.all : state.day) || [];
+  const rows = state.all || [];
   $("lb").innerHTML = rows.length
     ? rows.map(([n,p],i) =>
         `<li><span class="r">${String(i+1).padStart(2,"0")}</span>`+
@@ -274,6 +282,7 @@ function paint(){
   }
   paintSlots();
   paintMode();
+  paintBg();
   painting = false;
 }
 
@@ -386,8 +395,7 @@ $("pasteBox").addEventListener("input", () => {
 });
 
 $("btnReconnect").onclick   = () => cmd({cmd:"reconnect"});
-$("btnResetDay").onclick    = () => confirm("Clear today's leaderboard?") && cmd({cmd:"resetDay"});
-$("btnResetAll").onclick    = () => confirm("Clear the all-time leaderboard? This can't be undone.") && cmd({cmd:"resetAllTime"});
+$("btnResetAll").onclick    = () => confirm("Clear the leaderboard? This can't be undone.") && cmd({cmd:"resetAllTime"});
 $("btnResetCredits").onclick= () => confirm("Wipe every viewer's ball credits?") && cmd({cmd:"resetCredits"});
 $("btnClear").onclick       = () => cmd({cmd:"clearBoard"});
 $("btnTest").onclick        = () => cmd({cmd:"testDrop", user:"streamer", n:3, color:"pink"});
@@ -402,8 +410,14 @@ $("btnDefaults").onclick = () => {
   Settings.reset(); paint();
 };
 
-$("tabDay").onclick = () => { which="day"; $("tabDay").classList.add("on"); $("tabAll").classList.remove("on"); renderState(); };
-$("tabAll").onclick = () => { which="all"; $("tabAll").classList.add("on"); $("tabDay").classList.remove("on"); renderState(); };
+for (const b of document.querySelectorAll("#bgTabs button"))
+  b.addEventListener("click", () => { Settings.set("display.background", b.dataset.bg); paintBg(); });
+
+function paintBg(){
+  const t = Settings.get("display.background") === "transparent";
+  $("bgVig").classList.toggle("on", !t);
+  $("bgTrans").classList.toggle("on", t);
+}
 
 /* another context changed settings — repaint, don't fight the user */
 Settings.onChange(() => { if (!document.hasFocus()) paint(); paintOdds(); });

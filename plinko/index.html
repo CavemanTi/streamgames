@@ -35,68 +35,46 @@ body.preview{
     radial-gradient(900px 620px at 88% 88%, #0E2B3A 0%, transparent 58%),
     #08050F;
 }
-#stage{position:relative;width:100vw;height:100vh;display:flex;gap:16px;padding:16px}
-#boardWrap{position:relative;flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-width:0}
-#board{display:block}
-#rail{flex:0 0 314px;display:flex;flex-direction:column;gap:11px;min-height:0}
+#stage{position:relative;width:100vw;height:100vh}
+#boardWrap{position:relative;width:100%;height:100%}
+#board{position:absolute;inset:0;display:block}
 
-.card{
-  position:relative;background:var(--panel);border:1px solid var(--edge);
-  border-radius:13px;padding:13px 15px 15px;
-  backdrop-filter:blur(10px) saturate(1.25);
-  box-shadow:0 18px 44px -18px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05);
+/* panels sit in the dead space either side of the pin triangle.
+   JS positions them from the board geometry. */
+.inset{position:absolute;display:flex;flex-direction:column;gap:5px;overflow:hidden;pointer-events:none}
+.inset .ttl{
+  font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--dimmer);margin-bottom:3px;
 }
-.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
-.card-head .label{font-size:10px;font-weight:700;letter-spacing:.19em;text-transform:uppercase;color:var(--dimmer)}
-
-#brand{padding:15px}
-#brand .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
-#brand .name{font-family:var(--display);font-size:29px;line-height:.9;letter-spacing:.02em;text-transform:uppercase}
-#brand .name span{color:var(--h5)}
-#brand .live{display:flex;align-items:center;gap:6px;font-size:9px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:var(--dimmer)}
-#brand .live.on{color:var(--live)}
-#brand .dot{width:6px;height:6px;border-radius:50%;background:var(--dimmer)}
-#brand .live.on .dot{background:var(--live);box-shadow:0 0 9px var(--live)}
-#brand .meta{display:flex;gap:16px;margin-top:12px;padding-top:11px;border-top:1px solid var(--edge)}
-#brand .stat{display:flex;flex-direction:column;gap:2px}
-#brand .stat .k{font-family:var(--mono);font-size:16px;font-weight:700;line-height:1}
-#brand .stat .v{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dimmer)}
-#brand .stat.q .k{color:var(--warn)}
-
-.tabs{display:flex;gap:3px}
-.tabs button{font-size:9px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
-  background:transparent;color:var(--dimmer);border:1px solid transparent;border-radius:5px;
-  padding:4px 8px;cursor:pointer;transition:.16s;font-family:var(--ui)}
-.tabs button:hover{color:var(--dim)}
-.tabs button.on{background:rgba(237,234,245,.11);color:var(--chrome);border-color:var(--edge-hi)}
+body.transparent .inset .ttl{color:rgba(237,234,245,.45)}
 
 ol#lb{list-style:none;display:flex;flex-direction:column;gap:2px}
-ol#lb li{position:relative;display:grid;grid-template-columns:17px 9px 1fr auto;align-items:center;gap:8px;
-  padding:5px 7px;border-radius:6px;overflow:hidden;font-size:13px}
-ol#lb .bar{position:absolute;inset:0 auto 0 0;border-radius:6px;
-  background:linear-gradient(90deg, rgba(255,45,142,.20), rgba(255,45,142,.02))}
-ol#lb li:nth-child(n+4) .bar{background:linear-gradient(90deg, rgba(237,234,245,.08), rgba(237,234,245,.01))}
+ol#lb li{
+  position:relative;display:grid;grid-template-columns:16px 8px 1fr auto;
+  align-items:center;gap:7px;padding:3px 6px;border-radius:5px;overflow:hidden;font-size:13px;
+}
+ol#lb .bar{position:absolute;inset:0 auto 0 0;border-radius:5px;
+  background:linear-gradient(90deg,rgba(255,45,142,.20),rgba(255,45,142,.02))}
+ol#lb li:nth-child(n+4) .bar{background:linear-gradient(90deg,rgba(237,234,245,.07),rgba(237,234,245,.01))}
 ol#lb .rank{position:relative;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--dimmer)}
 ol#lb li:nth-child(1) .rank{color:var(--h5)}
 ol#lb li:nth-child(2) .rank{color:var(--h4)}
 ol#lb li:nth-child(3) .rank{color:var(--h3)}
-ol#lb .swatch{position:relative;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+ol#lb .swatch{position:relative;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.55)}
 ol#lb .who{position:relative;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 ol#lb .pts{position:relative;font-family:var(--mono);font-weight:700;font-size:12px}
 
 #feed{display:flex;flex-direction:column;gap:1px}
-#feed .line{display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0;white-space:nowrap;overflow:hidden}
+#feed .line{display:flex;align-items:center;gap:7px;font-size:12px;padding:2px 6px;white-space:nowrap;overflow:hidden}
 #feed .chip{width:6px;height:6px;border-radius:2px;flex:0 0 auto}
-#feed .who{color:var(--chrome);font-weight:500;overflow:hidden;text-overflow:ellipsis}
+#feed .who{overflow:hidden;text-overflow:ellipsis}
 #feed .val{font-family:var(--mono);font-weight:700;font-size:12px;margin-left:auto}
 #feed .note{color:var(--dimmer);font-size:11px;font-style:italic}
 
-#swatches{display:flex;flex-wrap:wrap;gap:5px}
-#swatches .sw{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--dim);
-  background:rgba(237,234,245,.05);border-radius:20px;padding:3px 8px 3px 4px}
-#swatches .sw i{width:9px;height:9px;border-radius:50%;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.45)}
+.empty{font-size:12px;color:var(--dimmer);font-style:italic;padding:3px 6px}
 
-.empty{font-size:12px;color:var(--dimmer);font-style:italic;padding:4px 0}
+/* legibility over arbitrary video when the cabinet isn't drawn */
+body.transparent .inset{text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 8px rgba(0,0,0,.7)}
 
 #console{position:fixed;left:0;right:0;bottom:0;z-index:20;
   background:linear-gradient(180deg,rgba(10,6,18,.6),#0A0612 34%);
@@ -122,39 +100,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--live);outline-o
 <body>
 
 <div id="stage">
-  <div id="boardWrap"><canvas id="board"></canvas></div>
-  <aside id="rail">
-    <section class="card" id="brand">
-      <div class="row">
-        <div class="name">PLIN<span>KO</span></div>
-        <div class="live" id="liveTag"><span class="dot"></span><span id="liveTxt">Offline</span></div>
-      </div>
-      <div class="meta">
-        <div class="stat"><span class="k" id="sDrops">0</span><span class="v">Drops</span></div>
-        <div class="stat"><span class="k" id="sBest">—</span><span class="v">Best</span></div>
-        <div class="stat"><span class="k" id="sPlayers">0</span><span class="v">Players</span></div>
-        <div class="stat q"><span class="k" id="sQueue">0</span><span class="v">Queued</span></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <span class="label">Leaderboard</span>
-        <span class="tabs"><button id="tabDay" class="on">Today</button><button id="tabAll">All time</button></span>
-      </div>
+  <div id="boardWrap">
+    <canvas id="board"></canvas>
+    <div class="inset" id="lbPanel">
+      <div class="ttl">Leaderboard</div>
       <ol id="lb"></ol>
-    </section>
-
-    <section class="card">
-      <div class="card-head"><span class="label">Last drops</span></div>
+    </div>
+    <div class="inset" id="feedPanel">
+      <div class="ttl">Last drops</div>
       <div id="feed"></div>
-    </section>
-
-    <section class="card">
-      <div class="card-head"><span class="label">Ball colours · !color</span></div>
-      <div id="swatches"></div>
-    </section>
-  </aside>
+    </div>
+  </div>
 </div>
 
 <div id="console">
@@ -171,6 +127,25 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--live);outline-o
 <script>
 "use strict";
 
+/* ------------------------------------------------------------
+   shared/kit.js must load first. If it didn't, bail with a small
+   readable notice — a browser source that throws here would
+   otherwise put a blank white rectangle over the stream.
+   ------------------------------------------------------------ */
+if (typeof Plinko === "undefined"){
+  document.body.innerHTML =
+    '<div style="position:fixed;inset:0;display:flex;align-items:center;' +
+    'justify-content:center;background:transparent;font-family:system-ui,sans-serif">' +
+    '<div style="background:rgba(10,6,18,.9);border:1px solid rgba(255,59,78,.5);' +
+    'border-radius:12px;padding:18px 22px;max-width:420px;color:#EDEAF5;line-height:1.5">' +
+    '<div style="font-weight:700;color:#FF3B4E;margin-bottom:6px">Plinko can\'t start</div>' +
+    '<div style="font-size:13px;color:#8C85A3">' +
+    'shared/kit.js failed to load. This page must be served over http from a copy ' +
+    'of the repo that still has the <b>shared</b> folder next to <b>plinko</b>. ' +
+    'Opening it as a local file will not work.</div></div></div>';
+} else {
+
+
 /* ============================================================
    Config, storage, bridge and economy all come from the shared
    kit so the control dock can drive this live.
@@ -181,6 +156,10 @@ Bridge.init();
 let CONFIG = Settings.data;          // live reference, replaced on change
 
 const DEBUG_FRAMES = false;
+/* Background: "vignette" draws the cabinet, "transparent" is a pure overlay.
+   URL wins so one dock can drive two differently-styled sources. */
+const _bgParam = new URLSearchParams(location.search).get("bg");
+const TRANSPARENT = (_bgParam || Settings.get("display.background") || "vignette") === "transparent";
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 
@@ -233,9 +212,8 @@ const Board = {
   },
 
   layout(){
-    const wrap=document.getElementById("boardWrap"), ratio=0.80;
-    let h=wrap.clientHeight, w=h*ratio;
-    if (w>wrap.clientWidth){ w=wrap.clientWidth; h=w/ratio; }
+    const wrap=document.getElementById("boardWrap");
+    const h=wrap.clientHeight, w=wrap.clientWidth;
 
     this.dpr=Math.min(window.devicePixelRatio||1,2);
     this.W=Math.floor(w); this.H=Math.floor(h);
@@ -243,8 +221,13 @@ const Board = {
     canvas.style.width=this.W+"px"; canvas.style.height=this.H+"px";
     ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
 
+    /* The pin triangle occupies a centre column; the space either side is
+       where the leaderboard and drops feed live. */
+    this.fieldW = Math.min(this.W*0.54, this.H*0.78);
+    this.gutter = (this.W - this.fieldW)/2;
+
     const R=CONFIG.rows;
-    this.s=this.W/(R+3.4);
+    this.s=this.fieldW/(R+3.4);
     this.hopperY=this.H*0.028;
     this.fieldTop=this.H*0.095;
     this.topY=this.H*0.175;
@@ -277,6 +260,22 @@ const Board = {
 
     Sprites.clear();
     this.buildPegLayer();
+    this.placePanels();
+  },
+
+  placePanels(){
+    const lb=document.getElementById("lbPanel"), fd=document.getElementById("feedPanel");
+    if (!lb||!fd) return;
+    const pad = Math.max(10, this.gutter*0.08);
+    const colW = Math.max(120, this.gutter - pad*2);
+    const top  = this.fieldTop + this.H*0.03;
+    for (const [el,side] of [[lb,"left"],[fd,"right"]]){
+      el.style.top = top+"px";
+      el.style.width = colW+"px";
+      el.style.maxHeight = (this.slotTop - top)+"px";
+      el.style[side] = pad+"px";
+      el.style[side==="left"?"right":"left"] = "auto";
+    }
   },
 
   /* pegs never move — render them once and blit */
@@ -503,6 +502,7 @@ function rr(x,y,w,h,r){
 }
 
 function drawCabinet(){
+  if (TRANSPARENT) return;
   const x=Board.leftWall-Board.s*0.55, w=(Board.rightWall-Board.leftWall)+Board.s*1.1;
   const h=Board.cabBottom-Board.fieldTop;
   const g=ctx.createLinearGradient(0,Board.fieldTop,0,Board.cabBottom);
@@ -518,12 +518,24 @@ function drawCabinet(){
 function drawHopper(){
   const cx=Board.W/2, w=Board.s*1.5, y=Board.hopperY;
   const active=Math.max(0, 1-(Date.now()-lastDropAt)/900);
+
+  /* The chute is the status light: red whenever chat isn't connected, so a
+     dead socket is visible on the board instead of only in the dock. */
+  const live = UI.liveState === "live";
+  const base = live ? "237,234,245" : "255,59,78";
+
   ctx.beginPath();
   ctx.moveTo(cx-w,y); ctx.lineTo(cx+w,y);
   ctx.lineTo(cx+Board.s*0.42, y+Board.s*0.72); ctx.lineTo(cx-Board.s*0.42, y+Board.s*0.72);
   ctx.closePath();
-  ctx.fillStyle="rgba(237,234,245,.07)"; ctx.fill();
-  ctx.strokeStyle=`rgba(237,234,245,${0.14+active*0.5})`; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.fillStyle=`rgba(${base},${live?0.07:0.12})`; ctx.fill();
+  ctx.strokeStyle=`rgba(${base},${(live?0.14:0.55)+active*0.5})`;
+  ctx.lineWidth=live?1.5:2; ctx.stroke();
+
+  if (!live && !REDUCED){
+    const pulse = 0.25+0.25*Math.sin(Date.now()/520);
+    ctx.strokeStyle=`rgba(${base},${pulse})`; ctx.lineWidth=4; ctx.stroke();
+  }
   if (active>0 && !REDUCED){
     ctx.fillStyle=`rgba(255,255,255,${active*0.28})`;
     ctx.fillRect(cx-Board.s*0.42, y+Board.s*0.72, Board.s*0.84, 2);
@@ -609,23 +621,9 @@ function drawFx(){
   }
 }
 
-function drawIdleCta(){
-  const idle=(Date.now()-lastDropAt)/1000;
-  if (balls.length || queue.length || idle<CONFIG.idleCtaAfterSec) return;
-  const a=Math.min(1,(idle-CONFIG.idleCtaAfterSec)/1.4)*(REDUCED?0.7:0.55+0.2*Math.sin(Date.now()/900));
-  const cy=Board.fieldTop+(Board.slotTop-Board.fieldTop)*0.42;
-  ctx.globalAlpha=a; ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.font=`${Math.floor(Board.s*1.5)}px ${cssVar('--display')}`;
-  ctx.fillStyle="#EDEAF5"; ctx.fillText("!drop", Board.W/2, cy);
-  ctx.font=`600 ${Math.floor(Board.s*0.28)}px ${cssVar('--ui')}`;
-  ctx.fillStyle="rgba(237,234,245,.6)";
-  ctx.fillText("TYPE IN CHAT TO PLAY", Board.W/2, cy+Board.s*1.05);
-  ctx.globalAlpha=1;
-}
-
 function draw(){
   ctx.clearRect(0,0,Board.W,Board.H);
-  drawCabinet(); drawIdleCta(); drawHopper();
+  drawCabinet(); drawHopper();
   drawSlots(); drawPegs(); drawBalls(); drawFx();
 }
 
@@ -758,8 +756,7 @@ function runCommand(user, parts, isMod){
     for (const a of parts.slice(1)) if (/^\d+$/.test(a)) count = parseInt(a,10);
     count = Math.max(1, Math.min(count, CONFIG.economy.maxPerDrop));
     dropFor(user, count, false);
-    UI.renderStats();
-  }
+    }
 }
 
 function setFreePlay(on){
@@ -830,19 +827,16 @@ const Chat = {
    UI
    ============================================================ */
 const UI = {
-  which:"day", feed:[], dirty:false, feedDirty:false,
+  feed:[], dirty:false, feedDirty:false,
 
   liveState:"offline",
-  setLive(on, txt){
-    this.liveState = txt;
-    const tag=document.getElementById("liveTag"), t=document.getElementById("liveTxt");
-    if (tag) tag.classList.toggle("on", !!on);
-    if (t) t.textContent = txt;
-  },
+  setLive(on, txt){ this.liveState = txt; },
 
+  /* One list. It stacks until the streamer clears it — no daily rollover. */
   renderBoard(){
-    const rows=Economy.top(this.which);
+    const rows=Economy.top("all", 12);
     const el=document.getElementById("lb");
+    if (!el) return;
     if (!rows.length){ el.innerHTML=`<li class="empty">Nobody's dropped yet</li>`; return; }
     const max=rows[0][1]||1;
     el.innerHTML=rows.map(([n,p],i)=>{
@@ -855,35 +849,25 @@ const UI = {
     }).join("");
   },
 
-  renderStats(){
-    document.getElementById("sDrops").textContent=Economy.dayDrops.toLocaleString();
-    document.getElementById("sBest").textContent=Economy.dayBest||"—";
-    document.getElementById("sPlayers").textContent=Object.keys(Economy.dayScores).length;
-    document.getElementById("sQueue").textContent=queue.length;
-  },
-
   pushDrop(user,value,heat,ballColor){
     this.feed.unshift(
       `<div class="line"><span class="chip" style="background:${ballColor}"></span>`+
       `<span class="who">${esc(user)}</span>`+
       `<span class="val" style="color:${heat}">${value>0?"+":""}${value}</span></div>`);
-    this.feed=this.feed.slice(0,6); this.feedDirty=true;
+    this.feed=this.feed.slice(0,9); this.feedDirty=true;
   },
   note(m){
     this.feed.unshift(`<div class="line"><span class="note">${esc(m)}</span></div>`);
-    this.feed=this.feed.slice(0,6); this.feedDirty=true;
+    this.feed=this.feed.slice(0,9); this.feedDirty=true;
   },
   tick(){
-    if (this.feedDirty){ document.getElementById("feed").innerHTML=this.feed.join(""); this.feedDirty=false; }
+    if (this.feedDirty){
+      const el=document.getElementById("feed");
+      if (el) el.innerHTML=this.feed.join("");
+      this.feedDirty=false;
+    }
     if (this.dirty){ this.renderBoard(); this.dirty=false; }
-    this.renderStats();
   },
-
-  renderSwatches(){
-    document.getElementById("swatches").innerHTML=Object.entries(CONFIG.palette)
-      .map(([n,c])=>`<span class="sw"><i style="background:${c}"></i>${n}</span>`).join("");
-  },
-
 };
 
 /* ============================================================
@@ -894,7 +878,8 @@ else document.body.classList.add("preview");
 
 Board.buildValues();
 Board.layout();
-UI.renderBoard(); UI.renderStats(); UI.renderSwatches();
+if (TRANSPARENT) document.body.classList.add("transparent");
+UI.renderBoard();
 UI.setLive(false,"offline");
 setFreePlay(CONFIG.economy.freePlay);
 
@@ -910,22 +895,9 @@ document.getElementById("rain").onclick=()=>{
   const names=["kayla_tv","monk3y","GRIT","zeph","doubledown","nyx","bigmike","p1ng","vex","opal"];
   const cols=Object.values(CONFIG.palette);
   for (let i=0;i<400;i++) enqueue(names[i%names.length], cols[i%cols.length], 1);
-  UI.renderStats();
 };
 document.getElementById("freeplay").onclick=()=>setFreePlay(!CONFIG.economy.freePlay);
-document.getElementById("reset").onclick=()=>Economy.resetDay();
-document.getElementById("tabDay").onclick=()=>{
-  UI.which="day";
-  document.getElementById("tabDay").classList.add("on");
-  document.getElementById("tabAll").classList.remove("on");
-  UI.renderBoard();
-};
-document.getElementById("tabAll").onclick=()=>{
-  UI.which="all";
-  document.getElementById("tabAll").classList.add("on");
-  document.getElementById("tabDay").classList.remove("on");
-  UI.renderBoard();
-};
+document.getElementById("reset").onclick=()=>{ Economy.resetAllTime(); Economy.resetDay(); UI.dirty=true; };
 
 setInterval(()=>{
   for (const n of Object.keys(Economy.users)) Economy.grant(n, CONFIG.economy.watchBalls);
@@ -953,7 +925,6 @@ Settings.onChange(s => {
     lastRoom = s.chatroomId;
     if (s.chatroomId) Chat.connectKick({ chatroomId: s.chatroomId });
   }
-  UI.renderSwatches();
   UI.dirty = true;
 });
 
@@ -999,6 +970,8 @@ else UI.setLive(false, "no channel set");
 
 requestAnimationFrame(loop);
 
+
+}
 </script>
 </body>
 </html>
