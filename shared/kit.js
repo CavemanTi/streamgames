@@ -27,7 +27,13 @@ const DEFAULTS = {
   },
   defaultColor: "#FFFFFF",
 
-  board: { maxActive:300, maxQueue:3000, releasePerFrame:4 },
+  board: {
+    maxActive:300, maxQueue:3000, releasePerFrame:4,
+    /* Gap between spawns so a multi-ball !drop trickles out instead of
+       arriving as one clump. Ignored once the queue is deep enough that a
+       raid would otherwise take minutes to drain. */
+    releaseGapMs: 130,
+  },
 
   economy: {
     freePlay:true, startingBalls:3, maxPerDrop:5, cooldownSec:30,

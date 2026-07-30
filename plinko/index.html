@@ -381,11 +381,29 @@ function spawn(user, color){
   lastDropAt = Date.now();
 }
 
+let simTick = 0, lastReleaseTick = -999;
+
+/* How fast to feed the queue onto the board. A short queue trickles so a
+   !drop 5 reads as five balls rather than a blob; a deep queue drains flat
+   out so a raid doesn't take minutes. Tick-based, so it's tied to the fixed
+   60Hz sim rather than wall clock. */
+function releasePlan(){
+  const q = queue.length, b = CONFIG.board;
+  const full = Math.max(1, Math.round((b.releaseGapMs||130) / (1000/SIM_HZ)));
+  if (q > 60) return { perStep: b.releasePerFrame, gap: 0 };
+  if (q > 20) return { perStep: 1, gap: Math.max(1, Math.round(full/2)) };
+  return { perStep: 1, gap: full };
+}
+
 function drainQueue(){
+  simTick++;
+  const { perStep, gap } = releasePlan();
   let released = 0;
-  while (queue.length && balls.length < CONFIG.board.maxActive && released < CONFIG.board.releasePerFrame){
+  while (queue.length && balls.length < CONFIG.board.maxActive && released < perStep){
+    if (gap && simTick - lastReleaseTick < gap) break;
     const d = queue.shift();
     spawn(d.user, d.color);
+    lastReleaseTick = simTick;
     released++;
   }
 }
