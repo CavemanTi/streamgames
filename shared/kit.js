@@ -171,6 +171,8 @@ const Economy = {
   dayScores: Store.get("plinko.dayScores", {}),
   dayDrops:  Store.get("plinko.dayDrops", 0),
   dayBest:   Store.get("plinko.dayBest", 0),
+  /* Identity is the lowercased name; this keeps the casing chat shows. */
+  display:   Store.get("plinko.display", {}),
   onReset: null,
   _dirty: false,
 
@@ -183,7 +185,41 @@ const Economy = {
     }
   },
 
+  /* Kick sends display casing, mods type whatever they like. Fold every
+     record onto the lowercase key so one person is one person. */
+  normalizeKeys(){
+    const foldNum = o => {
+      const out={};
+      for (const k of Object.keys(o)) { const l=k.toLowerCase(); out[l]=(out[l]||0)+o[k]; }
+      return out;
+    };
+    const foldUser = o => {
+      const out={};
+      for (const k of Object.keys(o)){
+        const l=k.toLowerCase(), v=o[k]||{};
+        if (!out[l]) out[l]={balls:0,last:0,color:null};
+        out[l].balls += v.balls||0;
+        out[l].last   = Math.max(out[l].last, v.last||0);
+        out[l].color  = out[l].color || v.color || null;
+        if (k!==l && !this.display[l]) this.display[l]=k;
+      }
+      return out;
+    };
+    this.users     = foldUser(this.users);
+    this.allTime   = foldNum(this.allTime);
+    this.dayScores = foldNum(this.dayScores);
+  },
+
+  /* Remember how a name is spelled, without changing identity. */
+  seen(name){
+    const k = String(name).toLowerCase();
+    if (this.display[k] !== name){ this.display[k] = name; this.save(); }
+    return k;
+  },
+  shown(key){ return this.display[key] || key; },
+
   user(n){
+    n = String(n).toLowerCase();
     if (!this.users[n]) this.users[n] = { balls:Settings.get("economy.startingBalls"), last:0, color:Settings.get("defaultColor") };
     if (!this.users[n].color) this.users[n].color = Settings.get("defaultColor");
     return this.users[n];
@@ -192,6 +228,7 @@ const Economy = {
   setColor(n, hex){ this.user(n).color = hex; this.save(); },
 
   canDrop(n, c, opts){
+    n = String(n).toLowerCase();
     opts = opts || {};
     this.rollDayIfNeeded();
     const u = this.user(n);
@@ -205,6 +242,7 @@ const Economy = {
   },
 
   spend(n, c, opts){
+    n = String(n).toLowerCase();
     opts = opts || {};
     const u = this.user(n);
     u.last = Date.now();
@@ -213,9 +251,11 @@ const Economy = {
     this.save();
   },
 
-  grant(n, x){ this.user(n).balls += x; this.save(); },
+  grant(n, x){
+    n = String(n).toLowerCase(); this.user(n).balls += x; this.save(); },
 
   award(n, pts){
+    n = String(n).toLowerCase();
     this.rollDayIfNeeded();
     this.dayScores[n] = (this.dayScores[n]||0) + pts;
     this.allTime[n]   = (this.allTime[n]||0) + pts;
@@ -246,6 +286,7 @@ const Economy = {
     Store.set("plinko.users",this.users);         Store.set("plinko.allTime",this.allTime);
     Store.set("plinko.day",this.day);             Store.set("plinko.dayScores",this.dayScores);
     Store.set("plinko.dayDrops",this.dayDrops);   Store.set("plinko.dayBest",this.dayBest);
+    Store.set("plinko.display",this.display);
   },
 };
 

@@ -503,7 +503,7 @@ function step(){
       addRing(cx, Board.slotTop, c, big?1.7:1);
       addSparks(cx, Board.slotTop, c, big?20:8);
       if (balls.length <= CONFIG.labelThreshold || big)
-        addChit(cx, Board.slotTop-Board.s*0.25, `${b.user}  ${slot.value>0?"+":""}${slot.value}`, c);
+        addChit(cx, Board.slotTop-Board.s*0.25, `${Economy.shown(b.user)}  ${slot.value>0?"+":""}${slot.value}`, c);
 
       balls.splice(bi,1);
     }
@@ -703,7 +703,8 @@ const COMMANDS = new Set(["!drop","!balls","!credits","!bal","!color","!colour",
                           "!addballs","!givebballs","!top","!plinko"]);
 const strip = s => String(s||"").replace(/^@/,"").toLowerCase();
 
-function handleChat(user, text, isMod){
+function handleChat(rawUser, text, isMod){
+  const user = Economy.seen(rawUser);        // lowercase key, casing remembered
   const parts = String(text).trim().toLowerCase().split(/\s+/);
   if (COMMANDS.has(parts[0])) return runCommand(user, parts, isMod);
   if (CONFIG.economy.dropMode === "any") dropFor(user, 1, true);
@@ -871,7 +872,7 @@ const UI = {
       const col=(Economy.users[n]&&Economy.users[n].color)||CONFIG.defaultColor;
       return `<li><span class="rank">${String(i+1).padStart(2,"0")}</span>`+
         `<span class="swatch" style="background:${col}"></span>`+
-        `<span class="who">${esc(n)}</span>`+
+        `<span class="who">${esc(Economy.shown(n))}</span>`+
         `<span class="pts">${p.toLocaleString()}</span></li>`;
     }).join("");
   },
@@ -879,7 +880,7 @@ const UI = {
   pushDrop(user,value,heat,ballColor){
     this.feed.unshift(
       `<div class="line"><span class="chip" style="background:${ballColor}"></span>`+
-      `<span class="who">${esc(user)}</span>`+
+      `<span class="who">${esc(Economy.shown(user))}</span>`+
       `<span class="val" style="color:${heat}">${value>0?"+":""}${value}</span></div>`);
     this.feed=this.feed.slice(0,LB_ROWS); this.feedDirty=true;
   },
@@ -934,6 +935,7 @@ setInterval(()=>UI.tick(), 250);
 setInterval(()=>Economy.flush(), 2000);
 window.addEventListener("beforeunload", ()=>Economy.flush());
 
+Economy.normalizeKeys();                 // merge any pre-existing mixed-case records
 Economy.onReset = () => Board.histogram.fill(0);
 
 /* ---- live settings ---------------------------------------- */
