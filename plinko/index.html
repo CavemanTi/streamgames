@@ -992,6 +992,18 @@ setInterval(() => {
   if (!Bridge.sendLive("state", payload)) Bridge.send("state", payload);
 }, 1000);
 
+/* The browser source can carry its own config, so the overlay works without
+   a dock at all — needed anywhere docks don't share storage with browser
+   sources. Seeds the setting, so a dock (if present) stays in sync. */
+{
+  const q = new URLSearchParams(location.search);
+  const room = parseInt(q.get("room") || q.get("chatroom") || "", 10);
+  if (Number.isFinite(room) && room > 0 && room !== CONFIG.chatroomId)
+    Settings.set("chatroomId", room);
+  const chan = (q.get("channel") || "").trim();
+  if (chan && chan !== CONFIG.channelName) Settings.set("channelName", chan);
+}
+
 if (CONFIG.chatroomId) Chat.connectKick({ chatroomId: CONFIG.chatroomId });
 else UI.setLive(false, "no channel set");
 

@@ -127,7 +127,7 @@ ol#lb .p{font-family:var(--mono);font-weight:700;font-size:11px}
   <div class="btns" style="margin-bottom:7px">
     <button class="sm" id="btnLookup">1 · Open Kick lookup</button>
   </div>
-  <input type="text" class="wide" id="pasteBox" placeholder="2 · select all on that page, copy, paste here">
+  <input type="text" class="wide" id="pasteBox" placeholder="2 \u00b7 select all on that page, copy, paste here">
   <div class="note" id="pasteNote">Finds the ID for you. Nothing leaves your machine.</div>
 </div>
 
@@ -376,8 +376,9 @@ function extractChatroomId(text){
 $("btnLookup").onclick = () => {
   const slug = ($("channelName").value || "").trim().toLowerCase();
   if (!slug){ $("pasteNote").textContent = "Enter your channel name first."; $("channelName").focus(); return; }
-  window.open(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`, "_blank");
+  window.open("https://kick.com/api/v2/channels/" + encodeURIComponent(slug), "_blank");
   $("pasteNote").textContent = "Select all on that tab, copy, then paste below.";
+  $("pasteBox").focus();
 };
 
 $("pasteBox").addEventListener("input", () => {
@@ -388,7 +389,7 @@ $("pasteBox").addEventListener("input", () => {
     Settings.set("chatroomId", id);
     $("chatroomId").value = id;
     $("pasteBox").value = "";
-    $("pasteNote").textContent = `Found chatroom ${id} — connecting.`;
+    $("pasteNote").textContent = "Found chatroom " + id + " \u2014 connecting.";
   } else if (v.length > 40){
     $("pasteNote").textContent = "No chatroom ID in that. Check you copied the whole page.";
   }
