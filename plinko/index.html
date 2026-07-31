@@ -1020,16 +1020,51 @@ setInterval(() => {
   if (!Bridge.sendLive("state", payload)) Bridge.send("state", payload);
 }, 1000);
 
-/* The browser source can carry its own config, so the overlay works without
-   a dock at all — needed anywhere docks don't share storage with browser
-   sources. Seeds the setting, so a dock (if present) stays in sync. */
+/* ------------------------------------------------------------
+   The browser source carries its own config, so the overlay is
+   fully configurable without a dock — needed anywhere docks
+   don't share storage with browser sources, and the basis of
+   the setup page. Seeds the saved settings, so a dock stays in
+   sync where one exists.
+   ------------------------------------------------------------ */
 {
   const q = new URLSearchParams(location.search);
-  const room = parseInt(q.get("room") || q.get("chatroom") || "", 10);
-  if (Number.isFinite(room) && room > 0 && room !== CONFIG.chatroomId)
-    Settings.set("chatroomId", room);
+  const num = (k, lo, hi) => {
+    if (!q.has(k)) return null;
+    const v = parseInt(q.get(k), 10);
+    if (!Number.isFinite(v)) return null;
+    return Math.max(lo, Math.min(hi, v));
+  };
+  const bool = k => q.has(k) ? (q.get(k) !== "0" && q.get(k) !== "false") : null;
+  const put = (path, v) => { if (v !== null && v !== undefined && v !== Settings.get(path)) Settings.set(path, v); };
+
+  const room = num("room", 0, 99999999);
+  put("chatroomId", room !== null ? room : num("chatroom", 0, 99999999));
   const chan = (q.get("channel") || "").trim();
-  if (chan && chan !== CONFIG.channelName) Settings.set("channelName", chan);
+  if (chan) put("channelName", chan);
+
+  put("economy.dropMode", q.get("mode") === "any" ? "any"
+                        : q.get("mode") === "command" ? "command" : null);
+  put("economy.cooldownSec",        num("cd", 0, 3600));
+  put("economy.messageCooldownSec", num("mcd", 2, 600));
+  put("economy.maxPerDrop",         num("max", 1, 5));
+  put("economy.startingBalls",      num("start", 0, 100));
+  put("economy.watchEveryMin",      num("wmin", 1, 600));
+  put("economy.watchBalls",         num("wballs", 0, 100));
+  put("economy.onSub",              num("sub", 0, 500));
+  put("economy.onGiftSub",          num("gift", 0, 500));
+  put("economy.freePlay",           bool("free"));
+  put("economy.freeMessages",       bool("fmsg"));
+  put("board.maxActive",            num("board", 10, 300));
+
+  /* slots=-1,-2,5,10,25,50,100 centre outward. Must be exactly rows/2+1
+     values or tiles stop lining up with the pin gaps, so a wrong-length
+     list is ignored rather than half-applied. */
+  if (q.has("slots")){
+    const v = q.get("slots").split(",").map(x => parseInt(x,10));
+    if (v.length === CONFIG.rows/2 + 1 && v.every(Number.isFinite))
+      Settings.set("slotValues", v);
+  }
 }
 
 if (CONFIG.chatroomId) Chat.connectKick({ chatroomId: CONFIG.chatroomId });
