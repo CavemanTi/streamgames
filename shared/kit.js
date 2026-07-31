@@ -50,7 +50,15 @@ const DEFAULTS = {
 
   /* gravity is the only physics value worth exposing — the rest is
      calibrated against a binomial distribution and shouldn't be touched */
-  physics: { gravity:0.90, restitution:0.50, damping:0.990, jitter:0.45, maxVx:0.75, substeps:4 },
+  physics: {
+    /* gravity and jitter are quoted at refScale and scaled by the board's
+       actual peg spacing, so the game plays identically at any browser
+       source size. Without this a small source makes gravity relatively
+       stronger, balls escape the pin triangle and edge slots hit far too
+       often. restitution and damping are ratios and need no scaling. */
+    gravity:0.90, jitter:0.45, refScale:46.75,
+    restitution:0.50, damping:0.990, maxVx:0.75, substeps:4,
+  },
 
   idleCtaAfterSec: 14,
   labelThreshold: 45,

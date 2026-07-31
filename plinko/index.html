@@ -226,7 +226,10 @@ const Board = {
     this.fieldTop=this.H*0.095;
     this.hopperY=this.fieldTop+this.s*0.28;   // wholly inside the cabinet
     this.topY=this.H*0.175;
-    this.rowGap=(this.H*0.645)/R;
+    /* Row spacing is tied to peg spacing, not to height, so the pin grid is
+       the same shape at every aspect ratio. Deriving it from H made a 4:3
+       source spread wider than a 16:9 one. */
+    this.rowGap=this.s*1.061;
 
     this.pegs=[]; this.pegRows=[];
     for (let i=0;i<R;i++){
@@ -433,7 +436,11 @@ function addChit(x,y,text,color){ fx.push({kind:"chit",x,y,t:0,life:78,color,tex
 function step(){
   drainQueue();
 
-  const P=CONFIG.physics, sub=P.substeps, g=P.gravity/sub;
+  const P=CONFIG.physics, sub=P.substeps;
+  /* Scale the absolute terms to this board's peg spacing. */
+  const k   = Board.s / (P.refScale || 46.75);
+  const g   = (P.gravity * k) / sub;
+  const jit = P.jitter * k;
 
   for (let bi=balls.length-1; bi>=0; bi--){
     const b=balls[bi];
@@ -470,7 +477,7 @@ function step(){
           const vn=b.vx*nx+b.vy*ny;
           b.vx=(b.vx-2*vn*nx)*P.restitution;
           b.vy=(b.vy-2*vn*ny)*P.restitution;
-          b.vx+=(Math.random()-0.5)*P.jitter;
+          b.vx+=(Math.random()-0.5)*jit;
           p.flash=1;
         }
       }
