@@ -36,7 +36,7 @@ const DEFAULTS = {
   },
 
   economy: {
-    freePlay:true, startingBalls:3, maxPerDrop:5, cooldownSec:30,
+    freePlay:true, startingBalls:3, maxPerDrop:5, cooldownSec:0,
     watchEveryMin:10, watchBalls:1, onSub:5, onGiftSub:3,
 
     /* "command" = only !drop plays. "any" = every chat message drops one
